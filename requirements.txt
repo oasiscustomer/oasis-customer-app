@@ -1,0 +1,8 @@
+streamlit
+gspread
+oauth2client
+pytesseract
+opencv-python-headless
+Pillow
+numpy
+tesseract-ocr
