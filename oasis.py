@@ -13,37 +13,34 @@ import shutil
 import subprocess
 import cv2
 import re
+import sys
+import gspread
+import streamlit as st
+from google.auth.transport.requests import Request
+from google.oauth2 import service_account
+from PIL import Image
+import tempfile
 
-# 🚨 Tesseract 실행 파일 경로 자동 탐색
+# 🚨 Tesseract 실행 파일 경로 자동 탐색 (설치되지 않은 경우 예외 처리)
 tesseract_path = shutil.which("tesseract")
 
-# 🚨 Tesseract가 없으면 설치 시도
 if tesseract_path is None:
-    print("🚨 Tesseract 실행 파일을 찾을 수 없습니다. 설치를 진행합니다...")
-    os.system("apt-get update && apt-get install -y tesseract-ocr")
-
-    # 설치 후 다시 경로 확인
-    tesseract_path = shutil.which("tesseract")
-
-    if tesseract_path is None:
-        print("🚨 Tesseract 설치 후에도 실행 파일을 찾을 수 없습니다. OCR 기능이 비활성화됩니다.")
-        pytesseract.pytesseract.tesseract_cmd = None
-    else:
-        pytesseract.pytesseract.tesseract_cmd = tesseract_path
-        print(f"✅ Tesseract가 정상적으로 설치되었습니다! 실행 경로: {tesseract_path}")
+    print("🚨 Tesseract 실행 파일을 찾을 수 없습니다. OCR 기능이 비활성화됩니다.")
+    pytesseract.pytesseract.tesseract_cmd = None
+else:
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+    print(f"✅ Tesseract가 정상적으로 감지되었습니다! 실행 경로: {tesseract_path}")
 
 # 🚨 OCR 실행 함수 (Tesseract가 없을 경우 예외 처리)
 def recognize_license_plate(image_path):
-    if pytesseract.pytesseract.tesseract_cmd is None:
+    if pytesseract.pytesseract.tesseract_cmd is None or shutil.which("tesseract") is None:
         print("🚨 OCR 기능이 비활성화되었습니다. 번호판을 인식할 수 없습니다.")
-        return "번호판 인식 불가"
-
+        return "Tesseract 실행 불가"
     try:
         img = cv2.imread(image_path)
         if img is None:
             print("🚨 오류: 이미지를 불러올 수 없습니다. 올바른 이미지 파일을 제공하세요.")
             return "이미지 오류"
-
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # 🚨 Tesseract 실행 가능 여부 확인
@@ -56,36 +53,20 @@ def recognize_license_plate(image_path):
         # 🔹 번호판 형식 필터링
         plate_number_match = re.findall(r'\d{2,3}[가-힣]\d{4}', plate_text)
         return plate_number_match[0] if plate_number_match else "번호판 인식 실패"
-
     except Exception as e:
         print(f"🚨 OCR 실행 중 오류 발생: {e}")
         return "번호판 인식 불가"
 
-import sys
-import subprocess
-
-# 🚨 필요한 패키지가 없을 경우 자동 설치 (Google Colab 및 로컬 환경 지원)
-def install_packages():
-    required_packages = ["gspread", "oauth2client", "pytesseract", "opencv-python-headless", "streamlit", "numpy"]
-    for package in required_packages:
-        try:
-            __import__(package)
-        except ImportError:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-# 🚨 Google Colab 환경에서만 패키지를 설치
+# 🚨 Google Colab 및 로컬 환경에서만 실행 (Streamlit Cloud에서는 실행하지 않음)
 if "google.colab" in sys.modules:
+    def install_packages():
+        required_packages = ["gspread", "oauth2client", "pytesseract", "opencv-python-headless", "streamlit", "numpy"]
+        for package in required_packages:
+            try:
+                __import__(package)
+            except ImportError:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
     install_packages()
-
-import cv2
-import pytesseract
-import re
-import gspread
-import streamlit as st
-from google.auth.transport.requests import Request
-from google.oauth2 import service_account
-from PIL import Image
-import tempfile
 
 st.title("🚗 세차장 고객 관리 시스템")
 st.write("📸 차량 사진을 업로드하고 고객 정보를 확인하세요.")
@@ -95,66 +76,56 @@ st.subheader("1️⃣ Google Sheets API 키 파일 업로드")
 json_key_path = None  # 초기화
 
 if "google.colab" in sys.modules:
-    # Google Colab에서 JSON 파일 업로드
     from google.colab import files
     uploaded_key = files.upload()
     json_key_path = list(uploaded_key.keys())[0]
 else:
-    # Streamlit Cloud에서는 웹에서 JSON 업로드
     uploaded_key = st.file_uploader("🔑 Google Cloud에서 다운로드한 JSON 키 파일을 업로드하세요.", type=["json"])
     if uploaded_key is not None:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_key_file:
             temp_key_file.write(uploaded_key.getbuffer())
             json_key_path = temp_key_file.name
 
+# 🚨 JSON 키 파일이 업로드되지 않았을 경우 경고 메시지 출력
+if json_key_path is None:
+    st.error("🚨 Google Sheets API JSON 키 파일을 업로드해야 합니다!")
+    st.stop()
+
 # Google Sheets API 인증 설정
-if json_key_path is not None:
-    credentials = service_account.Credentials.from_service_account_file(
-        json_key_path, scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    )
-    client = gspread.authorize(credentials)
-    spreadsheet = client.open("Oasis Customer Management")
-    worksheet = spreadsheet.worksheet("시트1")
-    st.success("✅ Google Sheets 연결 성공!")
+credentials = service_account.Credentials.from_service_account_file(
+    json_key_path, scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+)
+client = gspread.authorize(credentials)
+spreadsheet = client.open("Oasis Customer Management")
+worksheet = spreadsheet.worksheet("시트1")
+st.success("✅ Google Sheets 연결 성공!")
 
-    # 📤 차량 사진 업로드
-    st.subheader("2️⃣ 차량 사진 업로드")
-    uploaded_image = st.file_uploader("📸 차량 사진을 업로드하세요.", type=["jpg", "jpeg", "png"])
+# 📤 차량 사진 업로드
+st.subheader("2️⃣ 차량 사진 업로드")
+uploaded_image = st.file_uploader("📸 차량 사진을 업로드하세요.", type=["jpg", "jpeg", "png"])
+if uploaded_image is not None:
+    image = Image.open(uploaded_image)
+    st.image(image, caption="업로드된 이미지", use_column_width=True)
 
-    if uploaded_image is not None:
-        image = Image.open(uploaded_image)
-        st.image(image, caption="업로드된 이미지", use_column_width=True)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_image:
+        temp_image.write(uploaded_image.getbuffer())
+        temp_image_path = temp_image.name
 
-        # 이미지 저장 후 OCR 실행
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_image:
-            temp_image.write(uploaded_image.getbuffer())
-            temp_image_path = temp_image.name
+    plate_number = recognize_license_plate(temp_image_path)
 
-        # OCR 실행
-        def recognize_license_plate(image_path):
-            img = cv2.imread(image_path)
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            plate_text = pytesseract.image_to_string(gray, lang='eng')
-            plate_number_match = re.findall(r'\d{2,3}[가-힣]\s?\d{4}', plate_text)
-            return plate_number_match[0] if plate_number_match else "번호판 인식 실패"
+    if plate_number == "번호판 인식 실패":
+        plate_number = st.text_input("🚨 번호판 인식 실패! 차량 번호를 직접 입력하세요:")
 
-        plate_number = recognize_license_plate(temp_image_path)
+    st.write(f"🚗 최종 차량 번호: {plate_number}")
 
-        # OCR 실패 시 직접 입력
-        if plate_number == "번호판 인식 실패":
-            plate_number = st.text_input("🚨 번호판 인식 실패! 차량 번호를 직접 입력하세요:")
+    records = worksheet.get_all_records()
+    customer_exists = any(record["Vehicle number"] == plate_number for record in records)
 
-        st.write(f"🚗 최종 차량 번호: {plate_number}")
-
-        # 고객 정보 확인 및 업데이트
-        records = worksheet.get_all_records()
-        customer_exists = any(record["Vehicle number"] == plate_number for record in records)
-
-        if customer_exists:
-            st.success("✅ 기존 고객입니다. 방문 기록을 업데이트합니다.")
-        else:
-            phone_number = st.text_input("📞 신규 고객입니다. 전화번호를 입력하세요:")
-            if st.button("🚗 신규 고객 등록") and phone_number:
-                new_customer = [plate_number, phone_number, "2025-03-19", "2025-03-19", 1, "2025-03-19 10:25 (1)"]
-                worksheet.append_row(new_customer)
-                st.success(f"✅ 신규 고객이 등록되었습니다: {plate_number}")
+    if customer_exists:
+        st.success("✅ 기존 고객입니다. 방문 기록을 업데이트합니다.")
+    else:
+        phone_number = st.text_input("📞 신규 고객입니다. 전화번호를 입력하세요:")
+        if st.button("🚗 신규 고객 등록") and phone_number:
+            new_customer = [plate_number, phone_number, "2025-03-19", "2025-03-19", 1, "2025-03-19 10:25 (1)"]
+            worksheet.append_row(new_customer)
+            st.success(f"✅ 신규 고객이 등록되었습니다: {plate_number}")
