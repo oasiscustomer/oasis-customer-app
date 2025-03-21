@@ -1,5 +1,8 @@
 streamlit
 gspread
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
 oauth2client
 pytesseract
 opencv-python-headless
