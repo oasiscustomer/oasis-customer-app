@@ -46,7 +46,7 @@ if "clear_fields" not in st.session_state:
     st.session_state.clear_fields = False
 
 # ✅ UI
-st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 세차장 고객 관리 시스템</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 st.markdown("### 2️⃣ 고객 차량 정보 입력")
 
 # ✅ 차량번호 검색
