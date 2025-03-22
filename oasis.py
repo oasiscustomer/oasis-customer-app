@@ -78,7 +78,12 @@ search_button = st.button("🔍 확인")
 
 if search_button and plate_input:
     records = worksheet.get_all_records()
-    matched = [r for r in records if plate_input in r['차량번호'] or r['차량번호'].endswith(plate_input)]
+    matched = [
+    r for r in records
+    if "차량번호" in r and r["차량번호"] and (
+        plate_input in r["차량번호"] or r["차량번호"].endswith(plate_input)
+    )
+]
     st.session_state.search_done = True
     st.session_state.matched_result = matched
     st.session_state.selected_plate = None
