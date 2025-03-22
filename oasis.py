@@ -148,7 +148,7 @@ if st.session_state.search_done:
                 new_count = int(customer.get("총 방문 횟수", 0)) + 1
                 new_log = last_log + f", {timestamp} (1)" if last_log else f"{timestamp} (1)"
 
-                worksheet.update(f"D{row_idx}", today)
+                worksheet.update_cell(row_idx, 4, today)
                 worksheet.update(f"E{row_idx}", new_count)
                 worksheet.update(f"F{row_idx}", new_log)
                 st.success("🗓 방문 정보가 성공적으로 기록되었습니다.")
