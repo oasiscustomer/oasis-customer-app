@@ -52,7 +52,6 @@ records = worksheet.get_all_records()
 
 if search_submit and search_input.strip():
     st.session_state.search_input = search_input.strip()
-    # ✅ 여기를 안전하게 수정 (문제 발생 방지)
     st.session_state.matched_customers = [
         r for r in records
         if isinstance(r, dict)
@@ -127,6 +126,11 @@ new_phone_value = "" if st.session_state.clear_fields else None
 with st.form("register_form"):
     new_plate = st.text_input("🚘 전체 차량번호", value=new_plate_value)
     new_phone = st.text_input("📞 고객 전화번호", value=new_phone_value)
+
+    # 🔧 상품명 선택 추가
+    product_options = ["기본", "프리미엄", "스페셜"]
+    selected_product = st.selectbox("🧾 상품명 선택", product_options)
+
     register_submit = st.form_submit_button("📥 신규 고객 등록")
 
     if register_submit and new_plate and new_phone:
@@ -136,7 +140,7 @@ with st.form("register_form"):
         else:
             try:
                 formatted_phone = format_phone_number(new_phone)
-                new_row = [new_plate, formatted_phone, today, today, 1, f"{now_str} (1)"]
+                new_row = [new_plate, formatted_phone, today, today, 1, f"{now_str} (1)", selected_product]  # 🔧 G열 상품명 포함
                 worksheet.append_row(new_row)
                 st.success("✅ 신규 고객 등록 완료")
                 st.session_state.clear_fields = True
