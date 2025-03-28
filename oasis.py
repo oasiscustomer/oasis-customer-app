@@ -91,7 +91,7 @@ if st.session_state.matched_customers:
                         new_log = f"{visit_log}, {now_str} (1)"
                         worksheet.update(f"D{row_idx}", [[today]])
                         worksheet.update(f"E{row_idx}", [[count]])
-                        worksheet.update(f"F{row_idx}", [[new_log]])
+                        worksheet.update(f"G{row_idx}", [[new_log]])  # ✅ 방문기록은 G열
                         st.success("✅ 방문 기록이 추가되었습니다.")
                         time.sleep(2)
                         st.rerun()
@@ -108,7 +108,7 @@ if st.session_state.matched_customers:
                     new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
                     worksheet.update(f"D{row_idx}", [[today]])
                     worksheet.update(f"E{row_idx}", [[count]])
-                    worksheet.update(f"F{row_idx}", [[new_log]])
+                    worksheet.update(f"G{row_idx}", [[new_log]])  # ✅ 방문기록은 G열
                     st.success("✅ 방문 기록이 추가되었습니다.")
                     time.sleep(2)
                     st.rerun()
@@ -140,7 +140,8 @@ with st.form("register_form"):
         else:
             try:
                 formatted_phone = format_phone_number(new_phone)
-                new_row = [new_plate, formatted_phone, today, today, 1, f"{now_str} (1)", selected_product]  # 🔧 G열 상품명 포함
+                # ✅ 상품명(F열), 방문기록(G열) 순서로 변경
+                new_row = [new_plate, formatted_phone, today, today, 1, selected_product, f"{now_str} (1)"]
                 worksheet.append_row(new_row)
                 st.success("✅ 신규 고객 등록 완료")
                 st.session_state.clear_fields = True
