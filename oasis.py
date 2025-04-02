@@ -4,7 +4,8 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 import pytz
 import time
 
@@ -28,6 +29,13 @@ def format_phone_number(phone: str) -> str:
     elif len(phone) == 10:
         return f"{phone[:3]}-{phone[3:6]}-{phone[6:]}"
     return phone
+
+# ✅ 옵션 → 개월 수 매핑
+def get_expire_date(join_date: datetime.date, option: str) -> str:
+    option_map = {"1개월": 1, "3개월": 3, "6개월": 6, "12개월": 12}
+    months = option_map.get(option, 1)
+    expire_date = join_date + relativedelta(months=months) - timedelta(days=1)
+    return expire_date.strftime("%Y-%m-%d")
 
 # ✅ 세션 초기화
 if "search_input" not in st.session_state:
@@ -95,10 +103,14 @@ if st.session_state.matched_customers:
 
         if renew_choice == "예":
             new_product = st.selectbox("🧾 새 상품 등급을 선택하세요", ["기본", "프리미엄", "스페셜"], key="product_renew")
+            option = st.selectbox("🗓 회원권 기간을 선택하세요", ["1개월", "3개월", "6개월", "12개월"], key="option_renew")
             if st.button("✅ 재등록 확정"):
                 try:
+                    expire_date = get_expire_date(now.date(), option)
                     worksheet.update(f"C{row_idx}", [[today]])
                     worksheet.update(f"F{row_idx}", [[new_product]])
+                    worksheet.update(f"G{row_idx}", [[option]])
+                    worksheet.update(f"H{row_idx}", [[expire_date]])
                     st.success("✅ 재등록이 완료되었습니다.")
                     time.sleep(1)
                     st.rerun()
@@ -129,7 +141,7 @@ if st.session_state.matched_customers:
                         new_log = f"{visit_log}, {now_str} (1)"
                         worksheet.update(f"D{row_idx}", [[today]])
                         worksheet.update(f"E{row_idx}", [[count]])
-                        worksheet.update(f"G{row_idx}", [[new_log]])
+                        worksheet.update(f"I{row_idx}", [[new_log]])
                         st.success("✅ 방문 기록이 추가되었습니다.")
                         time.sleep(2)
                         st.rerun()
@@ -146,7 +158,7 @@ if st.session_state.matched_customers:
                     new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
                     worksheet.update(f"D{row_idx}", [[today]])
                     worksheet.update(f"E{row_idx}", [[count]])
-                    worksheet.update(f"G{row_idx}", [[new_log]])
+                    worksheet.update(f"I{row_idx}", [[new_log]])
                     st.success("✅ 방문 기록이 추가되었습니다.")
                     time.sleep(2)
                     st.rerun()
@@ -165,6 +177,7 @@ with st.form("register_form"):
     new_phone = st.text_input("📞 고객 전화번호", value=new_phone_value)
     product_options = ["기본", "프리미엄", "스페셜"]
     selected_product = st.selectbox("🧾 상품명 선택", product_options)
+    selected_option = st.selectbox("🗓 회원권 기간을 선택하세요", ["1개월", "3개월", "6개월", "12개월"])
     register_submit = st.form_submit_button("📥 신규 고객 등록")
 
     if register_submit and new_plate and new_phone:
@@ -174,7 +187,8 @@ with st.form("register_form"):
         else:
             try:
                 formatted_phone = format_phone_number(new_phone)
-                new_row = [new_plate, formatted_phone, today, today, 1, selected_product, f"{now_str} (1)"]
+                expire_date = get_expire_date(now.date(), selected_option)
+                new_row = [new_plate, formatted_phone, today, today, 1, selected_product, selected_option, expire_date, f"{now_str} (1)"]
                 worksheet.append_row(new_row)
                 st.success("✅ 신규 고객 등록 완료")
                 st.session_state.clear_fields = True
