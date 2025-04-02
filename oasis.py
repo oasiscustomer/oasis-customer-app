@@ -77,6 +77,44 @@ if st.session_state.matched_customers:
         st.error("❌ 선택한 고객 정보를 찾을 수 없습니다. 다시 검색해 주세요.")
         st.stop()
 
+    expired = False
+    product = selected_customer.get("상품명", "").strip()
+    join_date_str = selected_customer.get("가입날짜", "").strip()
+
+    try:
+        join_date = datetime.strptime(join_date_str, "%Y-%m-%d").date()
+        days_since_join = (now.date() - join_date).days
+        if days_since_join >= 30 or product == "비회원":
+            expired = True
+    except ValueError:
+        st.warning("⚠️ 가입날짜가 올바르지 않아 만료 여부를 확인할 수 없습니다.")
+
+    if expired:
+        st.warning("📢 이 고객은 회원 기간이 만료되었거나 비회원입니다.")
+        renew_choice = st.radio("재등록 하시겠습니까?", ["예", "아니오"], key="renew_choice")
+
+        if renew_choice == "예":
+            new_product = st.selectbox("🧾 새 상품 등급을 선택하세요", ["기본", "프리미엄", "스페셜"], key="product_renew")
+            if st.button("✅ 재등록 확정"):
+                try:
+                    worksheet.update(f"C{row_idx}", [[today]])
+                    worksheet.update(f"F{row_idx}", [[new_product]])
+                    st.success("✅ 재등록이 완료되었습니다.")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ 재등록 실패: {e}")
+                st.stop()
+        else:
+            try:
+                worksheet.update(f"F{row_idx}", [["비회원"]])
+                st.info("ℹ️ 비회원으로 처리되었습니다.")
+                time.sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ 비회원 처리 실패: {e}")
+            st.stop()
+
     visit_log = selected_customer.get("방문기록", "")
 
     if today in visit_log:
@@ -91,7 +129,7 @@ if st.session_state.matched_customers:
                         new_log = f"{visit_log}, {now_str} (1)"
                         worksheet.update(f"D{row_idx}", [[today]])
                         worksheet.update(f"E{row_idx}", [[count]])
-                        worksheet.update(f"G{row_idx}", [[new_log]])  # ✅ 방문기록은 G열
+                        worksheet.update(f"G{row_idx}", [[new_log]])
                         st.success("✅ 방문 기록이 추가되었습니다.")
                         time.sleep(2)
                         st.rerun()
@@ -108,7 +146,7 @@ if st.session_state.matched_customers:
                     new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
                     worksheet.update(f"D{row_idx}", [[today]])
                     worksheet.update(f"E{row_idx}", [[count]])
-                    worksheet.update(f"G{row_idx}", [[new_log]])  # ✅ 방문기록은 G열
+                    worksheet.update(f"G{row_idx}", [[new_log]])
                     st.success("✅ 방문 기록이 추가되었습니다.")
                     time.sleep(2)
                     st.rerun()
@@ -119,18 +157,14 @@ if st.session_state.matched_customers:
 st.markdown("---")
 st.markdown("🆕 신규 고객 차량 정보 입력")
 
-# 필드 초기화 처리
 new_plate_value = "" if st.session_state.clear_fields else None
 new_phone_value = "" if st.session_state.clear_fields else None
 
 with st.form("register_form"):
     new_plate = st.text_input("🚘 전체 차량번호", value=new_plate_value)
     new_phone = st.text_input("📞 고객 전화번호", value=new_phone_value)
-
-    # 🔧 상품명 선택 추가
     product_options = ["기본", "프리미엄", "스페셜"]
     selected_product = st.selectbox("🧾 상품명 선택", product_options)
-
     register_submit = st.form_submit_button("📥 신규 고객 등록")
 
     if register_submit and new_plate and new_phone:
@@ -140,7 +174,6 @@ with st.form("register_form"):
         else:
             try:
                 formatted_phone = format_phone_number(new_phone)
-                # ✅ 상품명(F열), 방문기록(G열) 순서로 변경
                 new_row = [new_plate, formatted_phone, today, today, 1, selected_product, f"{now_str} (1)"]
                 worksheet.append_row(new_row)
                 st.success("✅ 신규 고객 등록 완료")
@@ -150,6 +183,5 @@ with st.form("register_form"):
             except Exception as e:
                 st.error(f"❌ 등록 실패: {e}")
 
-# 초기화 상태 리셋
 if st.session_state.clear_fields:
     st.session_state.clear_fields = False
