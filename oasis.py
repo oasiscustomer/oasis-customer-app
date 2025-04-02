@@ -71,12 +71,12 @@ if search_submit and search_input.strip():
 
 # ✅ 기존 고객 처리
 if st.session_state.matched_customers:
-    st.session_state.selected_plate = st.selectbox(
-        "📋 전체 차량번호 중에서 선택하세요",
-        [r["차량번호"] for r in st.session_state.matched_customers],
-        index=0 if st.session_state.selected_plate == "" else
-        [r["차량번호"] for r in st.session_state.matched_customers].index(st.session_state.selected_plate)
-    )
+    plate_display_map = {
+        f"{r['차량번호']} → {r.get('상품명', '')} / {r.get('상품 옵션', '')}": r["차량번호"]
+        for r in st.session_state.matched_customers
+    }
+    selected_display = st.selectbox("📋 전체 차량번호 중에서 선택하세요", list(plate_display_map.keys()))
+    st.session_state.selected_plate = plate_display_map[selected_display]
 
     selected_customer = next((r for r in records if r["차량번호"] == st.session_state.selected_plate), None)
     row_idx = next((i + 2 for i, r in enumerate(records) if r["차량번호"] == st.session_state.selected_plate), None)
