@@ -132,25 +132,32 @@ if st.session_state.get("matched_plate"):
         elif 상품옵션 in ["기본", "프리미엄", "스페셜"]:
     st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
     if 만료일:
-        expire_date = datetime.strptime(만료일.split()[0], "%Y-%m-%d").date()
-        days_left = (expire_date - now.date()).days
-        if days_left < 0:
-            st.error("⛔ 회원 기간이 만료되었습니다.")
-            choice = st.radio("⏳ 회원이 만료되었습니다. 재등록 하시겠습니까?", ["예", "아니오"])
-            if choice == "예":
-                new_option = st.selectbox("새 상품 옵션을 선택하세요", ["5회", "10회", "20회"])
-                confirm = st.button("🎯 재등록 완료")
-                if confirm:
-                    count = int(new_option.replace("회", ""))
-                    worksheet.update(f"C{row_idx}", [[today]])
-                    worksheet.update(f"F{row_idx}", [[new_option]])
-                    worksheet.update(f"G{row_idx}", [[count]])
-                    worksheet.update(f"H{row_idx}", [["None"]])
-                    worksheet.update(f"E{row_idx}", [[0]])
-                    st.success("✅ 재등록이 완료되었습니다.")
-                    time.sleep(1)
-                    st.rerun()
-        else:
+        try:
+            expire_date = datetime.strptime(만료일.split()[0], "%Y-%m-%d").date()
+            days_left = (expire_date - now.date()).days
+            if days_left < 0:
+                st.error("⛔ 회원 기간이 만료되었습니다.")
+                choice = st.radio("⏳ 회원이 만료되었습니다. 재등록 하시겠습니까?", ["예", "아니오"])
+                if choice == "예":
+                    new_option = st.selectbox("새 상품 옵션을 선택하세요", ["5회", "10회", "20회"])
+                    confirm = st.button("🎯 재등록 완료")
+                    if confirm:
+                        count = int(new_option.replace("회", ""))
+                        worksheet.update(f"C{row_idx}", [[today]])
+                        worksheet.update(f"F{row_idx}", [[new_option]])
+                        worksheet.update(f"G{row_idx}", [[count]])
+                        worksheet.update(f"H{row_idx}", [["None"]])
+                        worksheet.update(f"E{row_idx}", [[0]])
+                        st.success("✅ 재등록이 완료되었습니다.")
+                        time.sleep(1)
+                        st.rerun()
+            else:
+                st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
+        except Exception as e:
+            st.warning(f"⚠️ 만료일 형식 오류입니다: {e}")
+    else:
+        st.warning("⚠️ 회원 만료일 정보가 없습니다.")
+else:
             st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
     else:
         st.warning("⚠️ 회원 만료일 정보가 없습니다.")
