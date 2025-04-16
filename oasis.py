@@ -96,6 +96,17 @@ if st.session_state.get("matched_plate"):
             if st.button("✅ 오늘 방문 기록 추가"):
                 if remaining <= 0:
                     st.error("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
+                    recharge = st.selectbox("🔄 충전할 이용권을 선택하세요", ["5회", "10회", "20회"])
+                    confirm_recharge = st.button("💳 이용권 충전")
+                    if confirm_recharge:
+                        recharge_count = int(recharge.replace("회", ""))
+                        worksheet.update(f"F{row_idx}", [[recharge]])
+                        worksheet.update(f"G{row_idx}", [[recharge_count]])
+                        worksheet.update(f"C{row_idx}", [[today]])
+                        st.success(f"✅ {recharge}로 충전이 완료되었습니다.")
+                        time.sleep(1)
+                        st.rerun()
+                        st.stop()
                 else:
                     try:
                         new_remaining = remaining - 1
