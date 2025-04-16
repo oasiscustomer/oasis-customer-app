@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 v2: today_logged 완전 방어 로직 적용"""
+"""oasis.py - 반복 방문 허용: 클릭 시마다 차감되도록 변경"""
 
 import streamlit as st
 import gspread
@@ -69,7 +69,7 @@ if st.session_state.get("matched_plate") and st.session_state.get("matched_optio
     except:
         st.session_state.matched_plate = values[0]
 
-# ✅ 고객 처리 및 버튼 항상 표시 구조
+# ✅ 고객 처리: 버튼 클릭 시 무조건 차감 구조
 if st.session_state.get("matched_plate"):
     customer, row_idx, _ = get_customer(st.session_state.matched_plate)
     if customer and row_idx:
@@ -77,17 +77,6 @@ if st.session_state.get("matched_plate"):
         상품명 = customer.get("상품명", "")
         만료일 = customer.get("회원 만료일", "")
         visit_log = customer.get("방문기록", "")
-
-        # ✅ today_logged 완전 방어판
-        today_logged = False
-        for entry in visit_log.split(","):
-            clean = entry.strip()
-            if not clean:
-                continue
-            parts = clean.split()
-            if len(parts) >= 1 and parts[0].strip() == today:
-                today_logged = True
-                break
 
         st.markdown(f"### 🚘 선택된 차량번호: `{st.session_state.matched_plate}`")
         st.markdown(f"**상품 옵션:** {상품옵션} | **상품명:** {상품명}")
@@ -101,11 +90,7 @@ if st.session_state.get("matched_plate"):
             st.info(f"💡 남은 이용 횟수: {remaining}회")
 
             if st.button("✅ 오늘 방문 기록 추가"):
-                st.write("[DEBUG] 버튼 클릭됨, today_logged:", today_logged, "/ 남은 횟수:", remaining)
-
-                if today_logged:
-                    st.warning("📌 오늘 이미 방문 기록이 존재합니다.")
-                elif remaining <= 0:
+                if remaining <= 0:
                     st.error("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
                 else:
                     try:
