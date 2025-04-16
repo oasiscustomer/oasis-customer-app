@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 전체 안정화 최종본: 재등록 메시지 오류 및 차량번호 입력 반응성 개선"""
+"""oasis.py - 최종 안정화본: 재등록 후 오류 제거 및 즉시 이용 가능 구조"""
 
 import streamlit as st
 import gspread
@@ -39,10 +39,11 @@ def get_customer(plate):
 # ✅ UI 제목
 st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
-# ✅ 차량번호 실시간 입력 (Form 제거)
+# ✅ 차량번호 검색 (Form 기반으로 즉시 반응)
 with st.form("search_form"):
     search_input = st.text_input("🔎 차량 번호 (전체 또는 끝 4자리)", key="search_input")
     submitted = st.form_submit_button("🔍 확인")
+
 matched = []
 if submitted and search_input.strip():
     records = worksheet.get_all_records()
