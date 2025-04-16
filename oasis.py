@@ -173,9 +173,12 @@ if st.session_state.get("matched_plate"):
                     worksheet.update(f"D{row_idx}", [[today]])
                     worksheet.update(f"E{row_idx}", [[new_count]])
                     worksheet.update(f"I{row_idx}", [[new_log]])
+
                     time.sleep(1.2)
                     st.success("✅ 방문 기록이 추가되었습니다.")
                     st.rerun()
+                except Exception as e:
+                    st.error(f"❌ 방문 기록 추가 실패: {e}")
                 except Exception as e:
                     st.error(f"❌ 방문 기록 추가 실패: {e}")
                 except Exception as e:
