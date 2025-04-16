@@ -123,10 +123,9 @@ if st.session_state.get("matched_plate"):
                         worksheet.update(f"E{row_idx}", [[new_count]])
                         worksheet.update(f"G{row_idx}", [[new_remaining]])
                         worksheet.update(f"I{row_idx}", [[new_log]])
-
-                        st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {new_remaining}회.")
-                        time.sleep(1)
-                        st.rerun()
+                    time.sleep(1.2)
+                    st.success("✅ 방문 기록이 추가되었습니다.")
+                    st.rerun()
                     except Exception as e:
                         st.error(f"❌ Google Sheet 업데이트 실패: {e}")
 
