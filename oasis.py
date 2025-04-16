@@ -114,18 +114,18 @@ if st.session_state.get("matched_plate"):
                     st.stop()
             else:
                 if st.button("✅ 오늘 방문 기록 추가"):
-                    try:
-                        new_remaining = remaining - 1
-                        new_count = int(customer.get("총 방문 횟수", 0)) + 1
-                        new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
+    customer, row_idx, _ = get_customer(st.session_state.matched_plate)
+    visit_log = customer.get("방문기록", "")
+    new_count = int(customer.get("총 방문 횟수", 0)) + 1
+    new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
 
-                        worksheet.update(f"D{row_idx}", [[today]])
-                        worksheet.update(f"E{row_idx}", [[new_count]])
-                        worksheet.update(f"G{row_idx}", [[new_remaining]])
-                        worksheet.update(f"I{row_idx}", [[new_log]])
-                    time.sleep(1.2)
-                    st.success("✅ 방문 기록이 추가되었습니다.")
-                    st.rerun()
+    worksheet.update(f"D{row_idx}", [[today]])
+    worksheet.update(f"E{row_idx}", [[new_count]])
+    worksheet.update(f"I{row_idx}", [[new_log]])
+
+    time.sleep(1.2)
+    st.success("✅ 방문 기록이 추가되었습니다.")
+    st.rerun()
                     except Exception as e:
                         st.error(f"❌ Google Sheet 업데이트 실패: {e}")
 
