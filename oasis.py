@@ -46,6 +46,9 @@ with st.form("search_form"):
 
 matched = []
 if submitted and search_input.strip():
+    st.session_state["new_plate"] = ""
+    st.session_state["new_phone"] = ""
+    st.session_state["recharge_option"] = "5회"
     records = worksheet.get_all_records()
     matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
 
@@ -164,8 +167,8 @@ st.markdown("---")
 st.markdown("🆕 신규 고객 등록")
 
 with st.form("register_form"):
-    new_plate = st.text_input("🚘 차량번호")
-    new_phone = st.text_input("📞 전화번호")
+    new_plate = st.text_input("🚘 차량번호", key="new_plate")
+    new_phone = st.text_input("📞 전화번호", key="new_phone")
     new_product = st.selectbox("🧾 이용권", ["5회", "10회", "20회"])
     reg_submit = st.form_submit_button("📥 신규 등록")
 
