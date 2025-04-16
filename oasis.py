@@ -163,7 +163,7 @@ if st.session_state.get("matched_plate"):
 
         # ✅ 정액제 고객에게도 방문기록 추가 버튼 제공
         if 상품옵션 in ["기본", "프리미엄", "스페셜"]:
-            if st.button("✅ 오늘 방문 기록 추가 (정액제)"):
+            if st.button("✅ 오늘 방문 기록 추가"):
     try:
         customer, row_idx, _ = get_customer(st.session_state.matched_plate)
         visit_log = customer.get("방문기록", "")
@@ -177,6 +177,8 @@ if st.session_state.get("matched_plate"):
         time.sleep(1.2)
         st.success("✅ 방문 기록이 추가되었습니다.")
         st.rerun()
+    except Exception as e:
+        st.error(f"❌ 방문 기록 추가 실패: {e}")
     except Exception as e:
         st.error(f"❌ 방문 기록 추가 실패: {e}")
 
