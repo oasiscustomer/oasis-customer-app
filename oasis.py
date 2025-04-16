@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - st.rerun() 적용 포함 최종 확정 버전"""
+"""oasis.py - 고객 유형별 처리 및 버튼 표시 문제 해결 최종 코드"""
 
 import streamlit as st
 import gspread
@@ -64,6 +64,7 @@ if submitted and search_input.strip():
 if "matched_plate" in st.session_state and st.session_state.matched_plate:
     customer, row_idx, _ = get_customer(st.session_state.matched_plate)
     상품옵션 = customer.get("상품 옵션", "")
+    상품명 = customer.get("상품명", "")
     만료일 = customer.get("회원 만료일", "")
     visit_log = customer.get("방문기록", "")
     today_logged = any(today in v.strip() for v in visit_log.split(",")) if visit_log else False
@@ -101,8 +102,8 @@ if "matched_plate" in st.session_state and st.session_state.matched_plate:
                         st.rerun()
                 except Exception as e:
                     st.error(f"❌ 업데이트 실패: {e}")
-    else:
-        st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
+    elif 상품옵션 in ["기본", "프리미엄", "스페셜"]:
+        st.info(f"📄 정액제 회원입니다. (상품명: {상품옵션})")
         if 만료일:
             try:
                 expire_date = datetime.strptime(만료일, "%Y-%m-%d").date()
@@ -115,6 +116,8 @@ if "matched_plate" in st.session_state and st.session_state.matched_plate:
                 st.warning(f"⚠️ 만료일 형식 오류: {e}")
         else:
             st.warning("⚠️ 회원 만료일 정보가 없습니다.")
+    else:
+        st.warning("⚠️ 알 수 없는 상품 옵션입니다. 관리자에게 문의하세요.")
 
 # ✅ 신규 고객 등록
 st.markdown("---")
