@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.ipynb - 횟수 기반 회원 시스템 (최종 수정: 충전 후 즉시 데이터 반영 완전 해결)"""
+"""oasis.ipynb - 횟수 기반 회원 시스템 (완전 최종 수정: 충전 후 0건 표시 완전 해결)"""
 
 import streamlit as st
 import gspread
@@ -100,6 +100,9 @@ if st.session_state.matched_customers:
                     worksheet.update(f"G{row_idx}", [[use_count]])
                     st.success("✅ 충전이 완료되었습니다.")
                     time.sleep(1)
+                    # 🔄 충전 후 검색값 유지 + 고객 목록 재로드 유도
+                    st.session_state.matched_customers = []
+                    st.session_state.search_input = st.session_state.selected_plate[-4:]
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ 충전 실패: {e}")
