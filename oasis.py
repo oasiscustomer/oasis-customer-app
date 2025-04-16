@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.ipynb - 횟수 기반 회원 시스템 (최종 수정: 충전 후 0건 표시 해결)"""
+"""oasis.ipynb - 횟수 기반 회원 시스템 (최종 수정: 충전 후 0건 표시 해결, 데이터 동기화 보완)"""
 
 import streamlit as st
 import gspread
@@ -48,10 +48,9 @@ with st.form("search_form"):
     search_input = st.text_input("🔎 차량 번호 (전체 또는 끝 4자리)", value=st.session_state.search_input)
     search_submit = st.form_submit_button("🔍 확인")
 
-records = worksheet.get_all_records()
-
 if search_submit and search_input.strip():
     st.session_state.search_input = search_input.strip()
+    records = worksheet.get_all_records()
     st.session_state.matched_customers = [
         r for r in records
         if isinstance(r, dict)
@@ -60,6 +59,8 @@ if search_submit and search_input.strip():
         and st.session_state.search_input in r["차량번호"]
     ]
     st.session_state.selected_plate = ""
+
+records = worksheet.get_all_records()
 
 # ✅ 기존 고객 처리
 if st.session_state.matched_customers:
@@ -94,7 +95,10 @@ if st.session_state.matched_customers:
                     worksheet.update(f"G{row_idx}", [[use_count]])
                     st.success("✅ 충전이 완료되었습니다.")
                     time.sleep(1)
-                    st.session_state.search_input = st.session_state.selected_plate[-4:]  # 검색값 유지
+                    # ✅ 최신 데이터 재로드
+                    updated_records = worksheet.get_all_records()
+                    updated_customer = next((r for r in updated_records if r["차량번호"] == st.session_state.selected_plate), None)
+                    st.session_state.matched_customers = [updated_customer] if updated_customer else []
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ 충전 실패: {e}")
@@ -158,6 +162,7 @@ with st.form("register_form"):
     register_submit = st.form_submit_button("📥 신규 고객 등록")
 
     if register_submit and new_plate and new_phone:
+        records = worksheet.get_all_records()
         exists = any(r["차량번호"] == new_plate for r in records)
         if exists:
             st.warning("🚨 이미 등록된 차량입니다.")
