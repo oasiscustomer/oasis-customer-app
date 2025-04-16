@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 완전 안정화본: 이용권 충전 UI 오류 및 rerun 동기화 문제 해결"""
+"""oasis.py - 최종 안정화된 버전 (정액제 고객 방문기록 추가 포함)"""
 
 import streamlit as st
 import gspread
@@ -8,13 +8,13 @@ from datetime import datetime
 import pytz
 import time
 
-# ✅ 한국 시간대 설정
+# ✅ 한국 시간대
 tz = pytz.timezone("Asia/Seoul")
 now = datetime.now(tz)
 today = now.strftime("%Y-%m-%d")
 now_str = now.strftime("%Y-%m-%d %H:%M")
 
-# ✅ 구글 인증
+# ✅ Google 인증
 scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 client = gspread.authorize(credentials)
@@ -114,69 +114,42 @@ if st.session_state.get("matched_plate"):
                     st.stop()
             else:
                 if st.button("✅ 오늘 방문 기록 추가"):
-    customer, row_idx, _ = get_customer(st.session_state.matched_plate)
-    visit_log = customer.get("방문기록", "")
-    new_count = int(customer.get("총 방문 횟수", 0)) + 1
-    new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
+                    customer, row_idx, _ = get_customer(st.session_state.matched_plate)
+                    visit_log = customer.get("방문기록", "")
+                    new_count = int(customer.get("총 방문 횟수", 0)) + 1
+                    new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
 
-    worksheet.update(f"D{row_idx}", [[today]])
-    worksheet.update(f"E{row_idx}", [[new_count]])
-    worksheet.update(f"I{row_idx}", [[new_log]])
+                    worksheet.update(f"D{row_idx}", [[today]])
+                    worksheet.update(f"E{row_idx}", [[new_count]])
+                    worksheet.update(f"I{row_idx}", [[new_log]])
 
-    time.sleep(1.2)
-    st.success("✅ 방문 기록이 추가되었습니다.")
-    st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Google Sheet 업데이트 실패: {e}")
+                    time.sleep(1.2)
+                    st.success("✅ 방문 기록이 추가되었습니다.")
+                    st.rerun()
 
         elif 상품옵션 in ["기본", "프리미엄", "스페셜"]:
-    st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
-    if 만료일:
-        try:
-            expire_date = datetime.strptime(만료일.split()[0], "%Y-%m-%d").date()
-            days_left = (expire_date - now.date()).days
-            if days_left < 0:
-                st.error("⛔ 회원 기간이 만료되었습니다.")
-                choice = st.radio("⏳ 회원이 만료되었습니다. 재등록 하시겠습니까?", ["예", "아니오"])
-                if choice == "예":
-                    new_option = st.selectbox("새 상품 옵션을 선택하세요", ["5회", "10회", "20회"])
-                    confirm = st.button("🎯 재등록 완료")
-                    if confirm:
-                        count = int(new_option.replace("회", ""))
-                        worksheet.update(f"C{row_idx}", [[today]])
-                        worksheet.update(f"F{row_idx}", [[new_option]])
-                        worksheet.update(f"G{row_idx}", [[count]])
-                        worksheet.update(f"H{row_idx}", [["None"]])
-                        worksheet.update(f"E{row_idx}", [[0]])
-                        st.success("✅ 재등록이 완료되었습니다.")
-                        time.sleep(1)
-                        st.rerun()
-            else:
-                st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
-        except Exception as e:
-            st.warning(f"⚠️ 만료일 형식 오류입니다: {e}")
-    else:
-        st.warning("⚠️ 회원 만료일 정보가 없습니다.")
-else:
-            st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
-    else:
-        st.warning("⚠️ 회원 만료일 정보가 없습니다.")
-
-    # ✅ 오늘 방문 기록 추가 버튼 (정액제 고객용)
-    if st.button("✅ 오늘 방문 기록 추가"):
-        customer, row_idx, _ = get_customer(st.session_state.matched_plate)
-        visit_log = customer.get("방문기록", "")
-        new_count = int(customer.get("총 방문 횟수", 0)) + 1
-        new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
-
-        worksheet.update(f"D{row_idx}", [[today]])
-        worksheet.update(f"E{row_idx}", [[new_count]])
-        worksheet.update(f"I{row_idx}", [[new_log]])
-
-        time.sleep(1.2)
-        st.success("✅ 방문 기록이 추가되었습니다.")
-        st.rerun()
-else:
+            st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
+            if 만료일:
+                try:
+                    expire_date = datetime.strptime(만료일.split()[0], "%Y-%m-%d").date()
+                    days_left = (expire_date - now.date()).days
+                    if days_left < 0:
+                        st.error("⛔ 회원 기간이 만료되었습니다.")
+                        choice = st.radio("⏳ 회원이 만료되었습니다. 재등록 하시겠습니까?", ["예", "아니오"])
+                        if choice == "예":
+                            new_option = st.selectbox("새 상품 옵션을 선택하세요", ["5회", "10회", "20회"])
+                            confirm = st.button("🎯 재등록 완료")
+                            if confirm:
+                                count = int(new_option.replace("회", ""))
+                                worksheet.update(f"C{row_idx}", [[today]])
+                                worksheet.update(f"F{row_idx}", [[new_option]])
+                                worksheet.update(f"G{row_idx}", [[count]])
+                                worksheet.update(f"H{row_idx}", [["None"]])
+                                worksheet.update(f"E{row_idx}", [[0]])
+                                st.success("✅ 재등록이 완료되었습니다.")
+                                time.sleep(1)
+                                st.rerun()
+                    else:
                         st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
                 except Exception as e:
                     st.warning(f"⚠️ 만료일 형식 오류입니다: {e}")
@@ -184,39 +157,6 @@ else:
                 st.warning("⚠️ 회원 만료일 정보가 없습니다.")
         else:
             st.warning("⚠️ 알 수 없는 상품 옵션입니다. 관리자에게 문의하세요.")
-
-        # ✅ 정액제 고객에게도 방문기록 추가 버튼 제공
-        if 상품옵션 in ["기본", "프리미엄", "스페셜"]:
-            if st.button("✅ 오늘 방문 기록 추가"):
-    try:
-        customer, row_idx, _ = get_customer(st.session_state.matched_plate)
-        visit_log = customer.get("방문기록", "")
-        new_count = int(customer.get("총 방문 횟수", 0)) + 1
-        new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
-
-        worksheet.update(f"D{row_idx}", [[today]])
-        worksheet.update(f"E{row_idx}", [[new_count]])
-        worksheet.update(f"I{row_idx}", [[new_log]])
-
-        time.sleep(1.2)
-        st.success("✅ 방문 기록이 추가되었습니다.")
-        st.rerun()
-    except Exception as e:
-        st.error(f"❌ 방문 기록 추가 실패: {e}")
-    except Exception as e:
-        st.error(f"❌ 방문 기록 추가 실패: {e}")
-
-    except Exception as e:
-        st.error(f"❌ 방문 기록 추가 실패: {e}")
-
-    except Exception as e:
-        st.error(f"❌ 방문 기록 추가 실패: {e}")
-                except Exception as e:
-                    st.error(f"❌ 방문 기록 추가 실패: {e}")
-                except Exception as e:
-                    st.error(f"❌ 방문 기록 추가 실패: {e}")
-                except Exception as e:
-                    st.error(f"❌ 방문 기록 추가 실패: {e}")
 
 # ✅ 신규 고객 등록
 st.markdown("---")
