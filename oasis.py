@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 조건 분리 및 시뮬레이션 기반 완전 최종 안정화 버전"""
+"""oasis.py - 버튼 클릭 후 조건 내부 처리 방식으로 최종 안정화 버전"""
 
 import streamlit as st
 import gspread
@@ -80,28 +80,31 @@ if "matched_plate" in st.session_state and st.session_state.matched_plate:
         except:
             remaining = 0
 
-        if today_logged:
-            st.info("📌 오늘 이미 방문 기록이 존재합니다.")
-        elif remaining <= 0:
-            st.warning("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
-        elif 버튼클릭:
-            try:
-                customer, row_idx, _ = get_customer(st.session_state.matched_plate)
-                count = int(customer.get("총 방문 횟수", 0)) + 1
-                visit_log = customer.get("방문기록", "")
-                new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
-                remaining -= 1
+        if 버튼클릭:
+            if today_logged:
+                st.info("📌 오늘 이미 방문 기록이 존재합니다.")
+            elif remaining <= 0:
+                st.warning("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
+            else:
+                try:
+                    customer, row_idx, _ = get_customer(st.session_state.matched_plate)
+                    count = int(customer.get("총 방문 횟수", 0)) + 1
+                    visit_log = customer.get("방문기록", "")
+                    new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
+                    remaining -= 1
 
-                worksheet.update(f"D{row_idx}", [[today]])
-                worksheet.update(f"E{row_idx}", [[count]])
-                worksheet.update(f"G{row_idx}", [[remaining]])
-                worksheet.update(f"I{row_idx}", [[new_log]])
+                    worksheet.update(f"D{row_idx}", [[today]])
+                    worksheet.update(f"E{row_idx}", [[count]])
+                    worksheet.update(f"G{row_idx}", [[remaining]])
+                    worksheet.update(f"I{row_idx}", [[new_log]])
 
-                st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
-                time.sleep(1)
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ 업데이트 실패: {e}")
+                    st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ 업데이트 실패: {e}")
+        else:
+            st.info(f"💡 남은 이용 횟수: {remaining}회")
 
     elif 상품옵션 in ["기본", "프리미엄", "스페셜"]:
         st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
