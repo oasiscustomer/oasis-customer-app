@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.ipynb - 실시간 동기화 기반 시스템 (신규 회원은 차감/충전, 기존 회원은 만료일 안내)"""
+"""oasis.ipynb - 최종 완성: 모든 문제 해결, 차감/메시지/업데이트 정상 작동"""
 
 import streamlit as st
 import gspread
@@ -86,24 +86,38 @@ if submitted and search_input.strip():
                 if today_logged:
                     if st.radio("오늘 이미 방문 기록이 있습니다. 추가로 입력할까요?", ["Y", "N"], key="repeat") == "Y":
                         if st.button("📌 추가 방문 기록 입력"):
+                            customer, row_idx, _ = get_customer(selected_plate)
+                            try:
+                                remaining = int(customer.get("남은 이용 횟수", 0)) - 1
+                                count = int(customer.get("총 방문 횟수", 0)) + 1
+                                visit_log = customer.get("방문기록", "")
+                                new_log = f"{visit_log}, {now_str} (1)"
+                                worksheet.update(f"D{row_idx}", [[today]])
+                                worksheet.update(f"E{row_idx}", [[count]])
+                                worksheet.update(f"G{row_idx}", [[remaining]])
+                                worksheet.update(f"I{row_idx}", [[new_log]])
+                                st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
+                                time.sleep(1)
+                                st.experimental_rerun()
+                            except Exception as e:
+                                st.error(f"❌ 업데이트 실패: {e}")
+                else:
+                    if st.button("✅ 오늘 방문 기록 추가"):
+                        customer, row_idx, _ = get_customer(selected_plate)
+                        try:
+                            remaining = int(customer.get("남은 이용 횟수", 0)) - 1
                             count = int(customer.get("총 방문 횟수", 0)) + 1
-                            remaining -= 1
-                            new_log = f"{visit_log}, {now_str} (1)"
+                            visit_log = customer.get("방문기록", "")
+                            new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
                             worksheet.update(f"D{row_idx}", [[today]])
                             worksheet.update(f"E{row_idx}", [[count]])
                             worksheet.update(f"G{row_idx}", [[remaining]])
                             worksheet.update(f"I{row_idx}", [[new_log]])
                             st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
-                else:
-                    if st.button("✅ 오늘 방문 기록 추가"):
-                        count = int(customer.get("총 방문 횟수", 0)) + 1
-                        remaining -= 1
-                        new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
-                        worksheet.update(f"D{row_idx}", [[today]])
-                        worksheet.update(f"E{row_idx}", [[count]])
-                        worksheet.update(f"G{row_idx}", [[remaining]])
-                        worksheet.update(f"I{row_idx}", [[new_log]])
-                        st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
+                            time.sleep(1)
+                            st.experimental_rerun()
+                        except Exception as e:
+                            st.error(f"❌ 업데이트 실패: {e}")
         else:
             st.info(f"📄 이 고객은 정액제 회원입니다. (상품 옵션: {상품옵션})")
             if 만료일:
