@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 완전한 최종 버전: 차감, 메시지, 시트 반영 완벽 수정"""
+"""oasis.py - 방문 중복 체크 포함 최종 완성 버전"""
 
 import streamlit as st
 import gspread
@@ -62,10 +62,8 @@ if submitted and search_input.strip():
         customer, row_idx, _ = get_customer(selected_plate)
         상품옵션 = customer.get("상품 옵션", "")
         만료일 = customer.get("회원 만료일", "")
-
-        # ✅ 디버깅용 정보 출력
-        st.write("선택된 고객 정보:", customer)
-        st.write("행 번호:", row_idx)
+        visit_log = customer.get("방문기록", "")
+        today_logged = today in visit_log
 
         if 상품옵션 in ["5회", "10회", "20회"]:
             try:
@@ -73,7 +71,9 @@ if submitted and search_input.strip():
             except:
                 remaining = 0
 
-            if st.button("✅ 오늘 방문 기록 추가"):
+            if today_logged:
+                st.info("📌 오늘 이미 방문 기록이 존재합니다.")
+            elif st.button("✅ 오늘 방문 기록 추가"):
                 customer, row_idx, _ = get_customer(selected_plate)  # 실시간 정보 재확보
                 try:
                     remaining = int(customer.get("남은 이용 횟수", 0))
