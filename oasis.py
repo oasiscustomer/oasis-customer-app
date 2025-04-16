@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 구조 확정본: 버튼 항상 표시 + 클릭 후 조건 분기 방식 적용"""
+"""oasis.py - 최종 안정화 + 디버깅 로그 포함된 오류 없는 전체 코드"""
 
 import streamlit as st
 import gspread
@@ -87,11 +87,12 @@ if st.session_state.get("matched_plate"):
                 remaining = int(customer.get("남은 이용 횟수", 0))
             except:
                 remaining = 0
+
             st.info(f"💡 남은 이용 횟수: {remaining}회")
 
-            # ✅ 버튼 항상 렌더링
+            # ✅ 버튼 항상 표시
             if st.button("✅ 오늘 방문 기록 추가"):
-                # 👉 클릭 후 조건 판단
+                st.write("[DEBUG] 버튼 클릭됨, today_logged:", today_logged, "/ 남은 횟수:", remaining)
                 if today_logged:
                     st.warning("📌 오늘 이미 방문 기록이 존재합니다.")
                 elif remaining <= 0:
@@ -102,6 +103,8 @@ if st.session_state.get("matched_plate"):
                         new_count = int(customer.get("총 방문 횟수", 0)) + 1
                         new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
 
+                        st.write("[DEBUG] 업데이트 시작 → row:", row_idx, ", 남은 횟수:", new_remaining)
+
                         worksheet.update(f"D{row_idx}", [[today]])
                         worksheet.update(f"E{row_idx}", [[new_count]])
                         worksheet.update(f"G{row_idx}", [[new_remaining]])
@@ -111,7 +114,7 @@ if st.session_state.get("matched_plate"):
                         time.sleep(1)
                         st.experimental_rerun()
                     except Exception as e:
-                        st.error(f"❌ 업데이트 실패: {e}")
+                        st.error(f"❌ Google Sheet 업데이트 실패: {e}")
 
         elif 상품옵션 in ["기본", "프리미엄", "스페셜"]:
             st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
