@@ -105,7 +105,7 @@ if st.session_state.get("matched_plate"):
 
                         st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {new_remaining}회.")
                         time.sleep(1)
-                        st.experimental_rerun()
+                        st.rerun()
                     except Exception as e:
                         st.error(f"❌ Google Sheet 업데이트 실패: {e}")
 
