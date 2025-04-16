@@ -50,8 +50,16 @@ if submitted and search_input.strip():
     matched = [r for r in records if st.session_state.search_input in str(r.get("차량번호", ""))]
 
     if matched:
-        st.session_state.matched_options = {
-            f"{r.get('차량번호')} → {r.get('상품 옵션', '').strip()} / 남은 {r.get('남은 이용 횟수', '0')}회": r.get("차량번호")
+        def format_option_label(r):
+    옵션 = r.get('상품 옵션', '')
+    if 옵션 in ['5회', '10회', '20회']:
+        return f"{r.get('차량번호')}"
+    return f"{r.get('차량번호')} → {옵션}"
+
+    st.session_state.matched_options = {
+        format_option_label(r): r.get("차량번호")
+        for r in matched if r.get("차량번호")
+    } → {r.get('상품 옵션', '').strip()} / 남은 {r.get('남은 이용 횟수', '0')}회": r.get("차량번호")
             for r in matched if r.get("차량번호")
         }
         st.session_state.matched_plate = list(st.session_state.matched_options.values())[0]
