@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 안정화본: 재등록 후 오류 제거 및 즉시 이용 가능 구조"""
+"""oasis.py - 최종 안정화: 재등록 후 오류 제거 및 즉시 회차제 전환 구조"""
 
 import streamlit as st
 import gspread
@@ -39,7 +39,7 @@ def get_customer(plate):
 # ✅ UI 제목
 st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
-# ✅ 차량번호 검색 (Form 기반으로 즉시 반응)
+# ✅ 차량번호 검색 (Form 기반)
 with st.form("search_form"):
     search_input = st.text_input("🔎 차량 번호 (전체 또는 끝 4자리)", key="search_input")
     submitted = st.form_submit_button("🔍 확인")
@@ -84,6 +84,7 @@ if st.session_state.get("matched_plate"):
         st.markdown(f"### 🚘 선택된 차량번호: `{st.session_state.matched_plate}`")
         st.markdown(f"**상품 옵션:** {상품옵션} | **상품명:** {상품명}")
 
+        # ✅ 회차제 이용 고객
         if 상품옵션 in ["5회", "10회", "20회"]:
             try:
                 remaining = int(customer.get("남은 이용 횟수", 0))
@@ -112,6 +113,7 @@ if st.session_state.get("matched_plate"):
                     except Exception as e:
                         st.error(f"❌ Google Sheet 업데이트 실패: {e}")
 
+        # ✅ 정액제 고객 + 재등록 기능
         elif 상품옵션 in ["기본", "프리미엄", "스페셜"]:
             st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
             if 만료일:
@@ -137,8 +139,8 @@ if st.session_state.get("matched_plate"):
                                 st.stop()
                     else:
                         st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
-                except:
-                    st.warning("⚠️ 만료일 형식 오류입니다.")
+                except Exception as e:
+                    st.warning(f"⚠️ 만료일 형식 오류입니다: {e}")
             else:
                 st.warning("⚠️ 회원 만료일 정보가 없습니다.")
         else:
