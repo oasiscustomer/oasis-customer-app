@@ -40,9 +40,11 @@ def get_customer(plate):
 st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
 # ✅ 차량번호 실시간 입력 (Form 제거)
-search_input = st.text_input("🔎 차량 번호 (전체 또는 끝 4자리)", key="search_input")
+with st.form("search_form"):
+    search_input = st.text_input("🔎 차량 번호 (전체 또는 끝 4자리)", key="search_input")
+    submitted = st.form_submit_button("🔍 확인")
 matched = []
-if search_input.strip():
+if submitted and search_input.strip():
     records = worksheet.get_all_records()
     matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
 
