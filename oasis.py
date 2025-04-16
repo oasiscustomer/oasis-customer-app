@@ -181,6 +181,7 @@ if st.session_state.get("matched_plate"):
     except Exception as e:
         st.error(f"❌ 방문 기록 추가 실패: {e}")
 
+
     except Exception as e:
         st.error(f"❌ 방문 기록 추가 실패: {e}")
                 except Exception as e:
