@@ -127,10 +127,11 @@ if st.session_state.get("matched_plate"):
                             confirm = st.button("🎯 재등록 완료")
                             if confirm:
                                 count = int(new_option.replace("회", ""))
-                                worksheet.update(f"F{row_idx}", [[new_option]])
-                                worksheet.update(f"G{row_idx}", [[count]])
-                                worksheet.update(f"H{row_idx}", [[""]])
-                                worksheet.update(f"E{row_idx}", [[0]])
+                                worksheet.update(f"C{row_idx}", [[today]])  # 가입 날짜 갱신
+                            worksheet.update(f"F{row_idx}", [[new_option]])
+                            worksheet.update(f"G{row_idx}", [[count]])
+                            worksheet.update(f"H{row_idx}", [["None"]])
+                            worksheet.update(f"E{row_idx}", [[0]])
                                 st.success("✅ 재등록이 완료되었습니다.")
                                 time.sleep(1)
                                 st.rerun()
