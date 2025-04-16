@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 고객 유형별 처리 및 버튼 표시 문제 해결 최종 코드"""
+"""oasis.py - 조건 분리 및 시뮬레이션 기반 완전 최종 안정화 버전"""
 
 import streamlit as st
 import gspread
@@ -54,7 +54,7 @@ if submitted and search_input.strip():
         st.session_state.matched_plate = None
     else:
         customer_options = {
-            f"{r['차량번호']} → {r.get('상품 옵션', '')} / 남은 {r.get('남은 이용 횟수', '0')}회": r["차량번호"]
+            f"{r['차량번호']} → {r.get('상품 옵션', '').strip()} / 남은 {r.get('남은 이용 횟수', '0')}회": r["차량번호"]
             for r in matched
         }
         selected_label = st.selectbox("📋 고객 선택", list(customer_options.keys()))
@@ -63,13 +63,16 @@ if submitted and search_input.strip():
 # ✅ 고객 처리 (항상 유지)
 if "matched_plate" in st.session_state and st.session_state.matched_plate:
     customer, row_idx, _ = get_customer(st.session_state.matched_plate)
-    상품옵션 = customer.get("상품 옵션", "")
+    상품옵션 = customer.get("상품 옵션", "").strip()
     상품명 = customer.get("상품명", "")
     만료일 = customer.get("회원 만료일", "")
     visit_log = customer.get("방문기록", "")
     today_logged = any(today in v.strip() for v in visit_log.split(",")) if visit_log else False
 
     st.markdown(f"### 🚘 선택된 차량번호: `{st.session_state.matched_plate}`")
+    st.markdown(f"**상품 옵션:** {상품옵션} | **상품명:** {상품명}")
+
+    버튼클릭 = st.button("✅ 오늘 방문 기록 추가")
 
     if 상품옵션 in ["5회", "10회", "20회"]:
         try:
@@ -79,31 +82,29 @@ if "matched_plate" in st.session_state and st.session_state.matched_plate:
 
         if today_logged:
             st.info("📌 오늘 이미 방문 기록이 존재합니다.")
-        else:
-            if st.button("✅ 오늘 방문 기록 추가"):
-                try:
-                    customer, row_idx, _ = get_customer(st.session_state.matched_plate)
-                    remaining = int(customer.get("남은 이용 횟수", 0))
-                    if remaining <= 0:
-                        st.warning("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
-                    else:
-                        count = int(customer.get("총 방문 횟수", 0)) + 1
-                        visit_log = customer.get("방문기록", "")
-                        new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
-                        remaining -= 1
+        elif remaining <= 0:
+            st.warning("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
+        elif 버튼클릭:
+            try:
+                customer, row_idx, _ = get_customer(st.session_state.matched_plate)
+                count = int(customer.get("총 방문 횟수", 0)) + 1
+                visit_log = customer.get("방문기록", "")
+                new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
+                remaining -= 1
 
-                        worksheet.update(f"D{row_idx}", [[today]])
-                        worksheet.update(f"E{row_idx}", [[count]])
-                        worksheet.update(f"G{row_idx}", [[remaining]])
-                        worksheet.update(f"I{row_idx}", [[new_log]])
+                worksheet.update(f"D{row_idx}", [[today]])
+                worksheet.update(f"E{row_idx}", [[count]])
+                worksheet.update(f"G{row_idx}", [[remaining]])
+                worksheet.update(f"I{row_idx}", [[new_log]])
 
-                        st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
-                        time.sleep(1)
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"❌ 업데이트 실패: {e}")
+                st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
+                time.sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ 업데이트 실패: {e}")
+
     elif 상품옵션 in ["기본", "프리미엄", "스페셜"]:
-        st.info(f"📄 정액제 회원입니다. (상품명: {상품옵션})")
+        st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
         if 만료일:
             try:
                 expire_date = datetime.strptime(만료일, "%Y-%m-%d").date()
