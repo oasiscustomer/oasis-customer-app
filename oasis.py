@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 재등록 로직 추가: 만료된 정회원도 회차제로 전환 가능"""
+"""oasis.py - 전체 안정화: 재등록 시 Indentation 및 날짜 갱신 오류 수정"""
 
 import streamlit as st
 import gspread
@@ -116,7 +116,7 @@ if st.session_state.get("matched_plate"):
             st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
             if 만료일:
                 try:
-                    expire_date = datetime.strptime(만료일, "%Y-%m-%d").date()
+                    expire_date = datetime.strptime(만료일.split()[0], "%Y-%m-%d").date()
                     days_left = (expire_date - now.date()).days
                     if days_left < 0:
                         st.error("⛔ 회원 기간이 만료되었습니다.")
@@ -127,11 +127,11 @@ if st.session_state.get("matched_plate"):
                             confirm = st.button("🎯 재등록 완료")
                             if confirm:
                                 count = int(new_option.replace("회", ""))
-                                worksheet.update(f"C{row_idx}", [[today]])  # 가입 날짜 갱신
-                            worksheet.update(f"F{row_idx}", [[new_option]])
-                            worksheet.update(f"G{row_idx}", [[count]])
-                            worksheet.update(f"H{row_idx}", [["None"]])
-                            worksheet.update(f"E{row_idx}", [[0]])
+                                worksheet.update(f"C{row_idx}", [[today]])
+                                worksheet.update(f"F{row_idx}", [[new_option]])
+                                worksheet.update(f"G{row_idx}", [[count]])
+                                worksheet.update(f"H{row_idx}", [["None"]])
+                                worksheet.update(f"E{row_idx}", [[0]])
                                 st.success("✅ 재등록이 완료되었습니다.")
                                 time.sleep(1)
                                 st.rerun()
@@ -163,7 +163,7 @@ with st.form("register_form"):
             else:
                 formatted_phone = format_phone_number(new_phone)
                 count = int(new_product.replace("회", ""))
-                new_row = [new_plate, formatted_phone, today, today, 1, new_product, count, "", f"{now_str} (1)"]
+                new_row = [new_plate, formatted_phone, today, today, 1, new_product, count, "None", f"{now_str} (1)"]
                 worksheet.append_row(new_row)
                 st.success("✅ 신규 고객 등록 완료")
                 time.sleep(1)
