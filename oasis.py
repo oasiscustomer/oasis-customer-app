@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 안정화: 재등록 후 오류 제거 및 즉시 회차제 전환 구조"""
+"""oasis.py - 완전 안정화본: 이용권 충전 UI 오류 및 rerun 동기화 문제 해결"""
 
 import streamlit as st
 import gspread
@@ -51,20 +51,18 @@ if submitted and search_input.strip():
 
     if not matched:
         st.info("🚫 등록되지 않은 차량입니다.")
-    records = worksheet.get_all_records()
-    matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
+    else:
+        def format_option_label(r):
+            옵션 = r.get('상품 옵션', '')
+            if 옵션 in ['5회', '10회', '20회']:
+                return f"{r.get('차량번호')}"
+            return f"{r.get('차량번호')} -> {옵션}"
 
-    def format_option_label(r):
-        옵션 = r.get('상품 옵션', '')
-        if 옵션 in ['5회', '10회', '20회']:
-            return f"{r.get('차량번호')}"
-        return f"{r.get('차량번호')} -> {옵션}"
-
-    st.session_state.matched_options = {
-        format_option_label(r): r.get("차량번호")
-        for r in matched if r.get("차량번호")
-    }
-    st.session_state.matched_plate = list(st.session_state.matched_options.values())[0] if st.session_state.matched_options else None
+        st.session_state.matched_options = {
+            format_option_label(r): r.get("차량번호")
+            for r in matched if r.get("차량번호")
+        }
+        st.session_state.matched_plate = list(st.session_state.matched_options.values())[0] if st.session_state.matched_options else None
 
 # ✅ 고객 선택 유지 및 표시
 if st.session_state.get("matched_plate") and st.session_state.get("matched_options"):
@@ -89,7 +87,6 @@ if st.session_state.get("matched_plate"):
         st.markdown(f"### 🚘 선택된 차량번호: `{st.session_state.matched_plate}`")
         st.markdown(f"**상품 옵션:** {상품옵션} | **상품명:** {상품명}")
 
-        # ✅ 회차제 이용 고객
         if 상품옵션 in ["5회", "10회", "20회"]:
             try:
                 remaining = int(customer.get("남은 이용 횟수", 0))
@@ -98,21 +95,22 @@ if st.session_state.get("matched_plate"):
 
             st.info(f"💡 남은 이용 횟수: {remaining}회")
 
-            if st.button("✅ 오늘 방문 기록 추가"):
-                if remaining <= 0:
-                    st.error("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
-                    recharge = st.selectbox("🔄 충전할 이용권을 선택하세요", ["5회", "10회", "20회"], key="recharge_option")
-                    confirm_recharge = st.button("💳 이용권 충전")
-                    if confirm_recharge:
-                        recharge_count = int(st.session_state.recharge_option.replace("회", ""))
-                        worksheet.update(f"F{row_idx}", [[st.session_state.recharge_option]])
-                        worksheet.update(f"G{row_idx}", [[recharge_count]])
-                        worksheet.update(f"C{row_idx}", [[today]])
-                        st.success(f"✅ {recharge}로 충전이 완료되었습니다.")
-                        time.sleep(1)
-                        st.rerun()
-                        st.stop()
-                else:
+            if remaining <= 0:
+                st.error("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
+                if "recharge_option" not in st.session_state:
+                    st.session_state.recharge_option = "5회"
+                st.selectbox("🔄 충전할 이용권을 선택하세요", ["5회", "10회", "20회"], key="recharge_option")
+                if st.button("💳 이용권 충전"):
+                    recharge_count = int(st.session_state.recharge_option.replace("회", ""))
+                    worksheet.update(f"F{row_idx}", [[st.session_state.recharge_option]])
+                    worksheet.update(f"G{row_idx}", [[recharge_count]])
+                    worksheet.update(f"C{row_idx}", [[today]])
+                    st.success(f"✅ {st.session_state.recharge_option}로 충전이 완료되었습니다.")
+                    time.sleep(1)
+                    st.rerun()
+                    st.stop()
+            else:
+                if st.button("✅ 오늘 방문 기록 추가"):
                     try:
                         new_remaining = remaining - 1
                         new_count = int(customer.get("총 방문 횟수", 0)) + 1
@@ -129,7 +127,6 @@ if st.session_state.get("matched_plate"):
                     except Exception as e:
                         st.error(f"❌ Google Sheet 업데이트 실패: {e}")
 
-        # ✅ 정액제 고객 + 재등록 기능
         elif 상품옵션 in ["기본", "프리미엄", "스페셜"]:
             st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
             if 만료일:
