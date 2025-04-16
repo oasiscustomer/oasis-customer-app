@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 반복 방문 허용: 클릭 시마다 차감되도록 변경"""
+"""oasis.py - 전체 안정화 버전: 고객 선택 항목 오류 제거 및 완전 동작"""
 
 import streamlit as st
 import gspread
@@ -49,22 +49,17 @@ if submitted and search_input.strip():
     records = worksheet.get_all_records()
     matched = [r for r in records if st.session_state.search_input in str(r.get("차량번호", ""))]
 
-    if matched:
-        def format_option_label(r):
-    옵션 = r.get('상품 옵션', '')
-    if 옵션 in ['5회', '10회', '20회']:
-        return f"{r.get('차량번호')}"
-    return f"{r.get('차량번호')} → {옵션}"
+    def format_option_label(r):
+        옵션 = r.get('상품 옵션', '')
+        if 옵션 in ['5회', '10회', '20회']:
+            return f"{r.get('차량번호')}"
+        return f"{r.get('차량번호')} -> {옵션}"
 
     st.session_state.matched_options = {
         format_option_label(r): r.get("차량번호")
         for r in matched if r.get("차량번호")
-    } → {r.get('상품 옵션', '').strip()} / 남은 {r.get('남은 이용 횟수', '0')}회": r.get("차량번호")
-            for r in matched if r.get("차량번호")
-        }
-        st.session_state.matched_plate = list(st.session_state.matched_options.values())[0]
-    else:
-        st.session_state.matched_plate = None
+    }
+    st.session_state.matched_plate = list(st.session_state.matched_options.values())[0] if st.session_state.matched_options else None
 
 # ✅ 고객 선택 유지 및 표시
 if st.session_state.get("matched_plate") and st.session_state.get("matched_options"):
@@ -157,6 +152,6 @@ with st.form("register_form"):
                 worksheet.append_row(new_row)
                 st.success("✅ 신규 고객 등록 완료")
                 time.sleep(1)
-                st.experimental_rerun()
+                st.rerun()
         except Exception as e:
             st.error(f"❌ 등록 실패: {e}")
