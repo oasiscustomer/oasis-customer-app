@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 완벽 최종본: today_logged 정밀 판별 최종 적용"""
+"""oasis.py - 최종 완성본 v2: today_logged 완전 방어 로직 적용"""
 
 import streamlit as st
 import gspread
@@ -78,9 +78,16 @@ if st.session_state.get("matched_plate"):
         만료일 = customer.get("회원 만료일", "")
         visit_log = customer.get("방문기록", "")
 
-        # ✅ today_logged 정확 비교 처리
-        visit_entries = [entry.strip().split()[0] for entry in visit_log.split(",") if entry.strip() and len(entry.strip().split()) >= 1]
-        today_logged = today in visit_entries
+        # ✅ today_logged 완전 방어판
+        today_logged = False
+        for entry in visit_log.split(","):
+            clean = entry.strip()
+            if not clean:
+                continue
+            parts = clean.split()
+            if len(parts) >= 1 and parts[0].strip() == today:
+                today_logged = True
+                break
 
         st.markdown(f"### 🚘 선택된 차량번호: `{st.session_state.matched_plate}`")
         st.markdown(f"**상품 옵션:** {상품옵션} | **상품명:** {상품명}")
