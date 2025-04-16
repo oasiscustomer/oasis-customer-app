@@ -163,9 +163,11 @@ if st.session_state.get("matched_plate"):
             st.warning("⚠️ 알 수 없는 상품 옵션입니다. 관리자에게 문의하세요.")
 
         # ✅ 정액제 고객에게도 방문기록 추가 버튼 제공
-        if 상품옵션 in ["기본", "프리미엄", "스페셜"] and 만료일:
+        if 상품옵션 in ["기본", "프리미엄", "스페셜"]:
             if st.button("✅ 오늘 방문 기록 추가 (정액제)"):
                 try:
+                    customer, row_idx, _ = get_customer(st.session_state.matched_plate)
+                    visit_log = customer.get("방문기록", "")
                     new_count = int(customer.get("총 방문 횟수", 0)) + 1
                     new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
                     worksheet.update(f"D{row_idx}", [[today]])
