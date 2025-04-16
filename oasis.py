@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.ipynb - 실시간 동기화 기반 횟수 회원 시스템 (시트 구조 반영)"""
+"""oasis.ipynb - 실시간 동기화 기반 시스템 (신규 회원은 차감/충전, 기존 회원은 만료일 안내)"""
 
 import streamlit as st
 import gspread
@@ -37,7 +37,7 @@ def get_customer(plate):
     return customer, row_idx, records
 
 # ✅ UI 제목
-st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 실시간 고객 관리 시스템</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
 # ✅ 차량번호 검색
 with st.form("search_form"):
@@ -60,44 +60,64 @@ if submitted and search_input.strip():
         selected_plate = customer_options[selected_label]
         customer, row_idx, _ = get_customer(selected_plate)
 
-        try:
-            remaining = int(customer.get("남은 이용 횟수", 0))
-        except:
-            remaining = 0
+        상품옵션 = customer.get("상품 옵션", "")
+        만료일 = customer.get("회원 만료일", "")
 
-        if remaining <= 0:
-            st.warning("⛔ 이용횟수가 0건입니다.")
-            if st.radio("재충전 하시겠습니까?", ["예", "아니오"], key="recharge") == "예":
-                recharge_option = st.selectbox("🧾 이용권 재선택", ["5회", "10회", "20회"])
-                count = int(recharge_option.replace("회", ""))
-                if st.button("✅ 충전 완료"):
-                    worksheet.update(f"F{row_idx}", [[recharge_option]])
-                    worksheet.update(f"G{row_idx}", [[count]])
-                    st.success("충전 완료! 새로고침 해주세요.")
-                    st.stop()
-        else:
+        if 상품옵션 in ["5회", "10회", "20회"]:
+            try:
+                remaining = int(customer.get("남은 이용 횟수", 0))
+            except:
+                remaining = 0
+
             visit_log = customer.get("방문기록", "")
-            if today in visit_log:
-                if st.radio("오늘 이미 방문 기록이 있습니다. 추가로 입력할까요?", ["Y", "N"], key="repeat") == "Y":
-                    if st.button("📌 추가 방문 기록 입력"):
+            today_logged = any(today in log.strip() for log in visit_log.split(",")) if visit_log else False
+
+            if remaining <= 0:
+                st.warning("⛔ 이용횟수가 0건입니다.")
+                if st.radio("재충전 하시겠습니까?", ["예", "아니오"], key="recharge") == "예":
+                    recharge_option = st.selectbox("🧾 이용권 재선택", ["5회", "10회", "20회"])
+                    count = int(recharge_option.replace("회", ""))
+                    if st.button("✅ 충전 완료"):
+                        worksheet.update(f"F{row_idx}", [[recharge_option]])
+                        worksheet.update(f"G{row_idx}", [[count]])
+                        st.success("충전 완료! 새로고침 해주세요.")
+                        st.stop()
+            else:
+                if today_logged:
+                    if st.radio("오늘 이미 방문 기록이 있습니다. 추가로 입력할까요?", ["Y", "N"], key="repeat") == "Y":
+                        if st.button("📌 추가 방문 기록 입력"):
+                            count = int(customer.get("총 방문 횟수", 0)) + 1
+                            remaining -= 1
+                            new_log = f"{visit_log}, {now_str} (1)"
+                            worksheet.update(f"D{row_idx}", [[today]])
+                            worksheet.update(f"E{row_idx}", [[count]])
+                            worksheet.update(f"G{row_idx}", [[remaining]])
+                            worksheet.update(f"I{row_idx}", [[new_log]])
+                            st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
+                else:
+                    if st.button("✅ 오늘 방문 기록 추가"):
                         count = int(customer.get("총 방문 횟수", 0)) + 1
                         remaining -= 1
-                        new_log = f"{visit_log}, {now_str} (1)"
+                        new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
                         worksheet.update(f"D{row_idx}", [[today]])
                         worksheet.update(f"E{row_idx}", [[count]])
                         worksheet.update(f"G{row_idx}", [[remaining]])
                         worksheet.update(f"I{row_idx}", [[new_log]])
-                        st.success("✅ 방문 기록이 추가되었습니다.")
+                        st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
+        else:
+            st.info(f"📄 이 고객은 정액제 회원입니다. (상품 옵션: {상품옵션})")
+            if 만료일:
+                try:
+                    expire_date = datetime.strptime(만료일, "%Y-%m-%d").date()
+                    days_left = (expire_date - now.date()).days
+                    if days_left < 0:
+                        st.error("⛔ 회원 기간이 만료되었습니다.")
+                    else:
+                        st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
+                except Exception as e:
+                    st.warning(f"⚠️ 만료일 형식 오류: {e}")
             else:
-                if st.button("✅ 오늘 방문 기록 추가"):
-                    count = int(customer.get("총 방문 횟수", 0)) + 1
-                    remaining -= 1
-                    new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
-                    worksheet.update(f"D{row_idx}", [[today]])
-                    worksheet.update(f"E{row_idx}", [[count]])
-                    worksheet.update(f"G{row_idx}", [[remaining]])
-                    worksheet.update(f"I{row_idx}", [[new_log]])
-                    st.success("✅ 방문 기록이 추가되었습니다.")
+                st.warning("⚠️ 회원 만료일 정보가 없습니다.")
 
 # ✅ 신규 고객 등록
 st.markdown("---")
