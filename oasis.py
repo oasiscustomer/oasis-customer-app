@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 방문 중복 체크 포함 최종 완성 버전"""
+"""oasis.py - 중복 방문 확인 + 완전한 차감 및 메시지 작동 최종 안정화 버전"""
 
 import streamlit as st
 import gspread
@@ -63,7 +63,9 @@ if submitted and search_input.strip():
         상품옵션 = customer.get("상품 옵션", "")
         만료일 = customer.get("회원 만료일", "")
         visit_log = customer.get("방문기록", "")
-        today_logged = today in visit_log
+
+        # ✅ 방문 기록 날짜 문자열 정밀 분해
+        today_logged = any(today in v.strip() for v in visit_log.split(",")) if visit_log else False
 
         if 상품옵션 in ["5회", "10회", "20회"]:
             try:
@@ -73,28 +75,31 @@ if submitted and search_input.strip():
 
             if today_logged:
                 st.info("📌 오늘 이미 방문 기록이 존재합니다.")
-            elif st.button("✅ 오늘 방문 기록 추가"):
-                customer, row_idx, _ = get_customer(selected_plate)  # 실시간 정보 재확보
-                try:
-                    remaining = int(customer.get("남은 이용 횟수", 0))
-                    if remaining <= 0:
-                        st.warning("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
-                    else:
-                        count = int(customer.get("총 방문 횟수", 0)) + 1
-                        visit_log = customer.get("방문기록", "")
-                        new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
-                        remaining -= 1
+            else:
+                if st.button("✅ 오늘 방문 기록 추가"):
+                    try:
+                        # 🔁 버튼 클릭 시 재조회로 최신 상태 확보
+                        customer, row_idx, _ = get_customer(selected_plate)
+                        remaining = int(customer.get("남은 이용 횟수", 0))
 
-                        worksheet.update(f"D{row_idx}", [[today]])
-                        worksheet.update(f"E{row_idx}", [[count]])
-                        worksheet.update(f"G{row_idx}", [[remaining]])
-                        worksheet.update(f"I{row_idx}", [[new_log]])
+                        if remaining <= 0:
+                            st.warning("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
+                        else:
+                            count = int(customer.get("총 방문 횟수", 0)) + 1
+                            visit_log = customer.get("방문기록", "")
+                            new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
+                            remaining -= 1
 
-                        st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
-                        time.sleep(1)
-                        st.experimental_rerun()
-                except Exception as e:
-                    st.error(f"❌ 업데이트 실패: {e}")
+                            worksheet.update(f"D{row_idx}", [[today]])
+                            worksheet.update(f"E{row_idx}", [[count]])
+                            worksheet.update(f"G{row_idx}", [[remaining]])
+                            worksheet.update(f"I{row_idx}", [[new_log]])
+
+                            st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
+                            time.sleep(1)
+                            st.experimental_rerun()
+                    except Exception as e:
+                        st.error(f"❌ 업데이트 실패: {e}")
         else:
             st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
             if 만료일:
