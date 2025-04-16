@@ -113,7 +113,8 @@ if st.session_state.get("matched_plate"):
                     st.rerun()
                     st.stop()
             else:
-                if st.button("✅ 오늘 방문 기록 추가"):
+                # ✅ 정액제 고객도 방문기록 추가 가능하도록
+if st.button("✅ 오늘 방문 기록 추가"):
     customer, row_idx, _ = get_customer(st.session_state.matched_plate)
     visit_log = customer.get("방문기록", "")
     new_count = int(customer.get("총 방문 횟수", 0)) + 1
@@ -126,6 +127,7 @@ if st.session_state.get("matched_plate"):
     time.sleep(1.2)
     st.success("✅ 방문 기록이 추가되었습니다.")
     st.rerun()
+
                     except Exception as e:
                         st.error(f"❌ Google Sheet 업데이트 실패: {e}")
 
