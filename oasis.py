@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 버튼 반응 오류 해결 완전한 최종 구조"""
+"""oasis.py - st.rerun() 적용 포함 최종 확정 버전"""
 
 import streamlit as st
 import gspread
@@ -98,7 +98,7 @@ if "matched_plate" in st.session_state and st.session_state.matched_plate:
 
                         st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
                         time.sleep(1)
-                        st.experimental_rerun()
+                        st.rerun()
                 except Exception as e:
                     st.error(f"❌ 업데이트 실패: {e}")
     else:
@@ -139,6 +139,6 @@ with st.form("register_form"):
                 worksheet.append_row(new_row)
                 st.success("✅ 신규 고객 등록 완료")
                 time.sleep(1)
-                st.experimental_rerun()
+                st.rerun()
             except Exception as e:
                 st.error(f"❌ 등록 실패: {e}")
