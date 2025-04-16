@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.ipynb - 실시간 동기화 기반 횟수 회원 시스템 (완전 구조 개선)"""
+"""oasis.ipynb - 실시간 동기화 기반 횟수 회원 시스템 (시트 구조 반영)"""
 
 import streamlit as st
 import gspread
@@ -52,13 +52,16 @@ if submitted and search_input.strip():
     if not matched:
         st.info("🆕 등록되지 않은 차량입니다. 아래에서 신규 고객을 등록하세요.")
     else:
-        customer_options = {f"{r['차량번호']} → {r['상품명']} / 남은 {r['상품 옵션']}회": r["차량번호"] for r in matched}
+        customer_options = {
+            f"{r.get('차량번호', '')} → {r.get('상품 옵션', '')} / 남은 {r.get('남은 이용 횟수', '0')}회": r["차량번호"]
+            for r in matched
+        }
         selected_label = st.selectbox("📋 고객 선택", list(customer_options.keys()))
         selected_plate = customer_options[selected_label]
         customer, row_idx, _ = get_customer(selected_plate)
 
         try:
-            remaining = int(customer.get("상품 옵션", 0))
+            remaining = int(customer.get("남은 이용 횟수", 0))
         except:
             remaining = 0
 
