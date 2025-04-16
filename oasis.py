@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.ipynb - 최종 완성: 모든 문제 해결, 차감/메시지/업데이트 정상 작동"""
+"""oasis.py - 최종 완성: 버튼 클릭 후 차감, 메시지, 시트 반영 모두 정상 작동"""
 
 import streamlit as st
 import gspread
@@ -58,80 +58,52 @@ if submitted and search_input.strip():
         }
         selected_label = st.selectbox("📋 고객 선택", list(customer_options.keys()))
         selected_plate = customer_options[selected_label]
-        customer, row_idx, _ = get_customer(selected_plate)
 
-        상품옵션 = customer.get("상품 옵션", "")
-        만료일 = customer.get("회원 만료일", "")
+        if st.button("✅ 오늘 방문 기록 추가"):
+            customer, row_idx, _ = get_customer(selected_plate)
+            상품옵션 = customer.get("상품 옵션", "")
+            만료일 = customer.get("회원 만료일", "")
 
-        if 상품옵션 in ["5회", "10회", "20회"]:
-            try:
-                remaining = int(customer.get("남은 이용 횟수", 0))
-            except:
-                remaining = 0
-
-            visit_log = customer.get("방문기록", "")
-            today_logged = any(today in log.strip() for log in visit_log.split(",")) if visit_log else False
-
-            if remaining <= 0:
-                st.warning("⛔ 이용횟수가 0건입니다.")
-                if st.radio("재충전 하시겠습니까?", ["예", "아니오"], key="recharge") == "예":
-                    recharge_option = st.selectbox("🧾 이용권 재선택", ["5회", "10회", "20회"])
-                    count = int(recharge_option.replace("회", ""))
-                    if st.button("✅ 충전 완료"):
-                        worksheet.update(f"F{row_idx}", [[recharge_option]])
-                        worksheet.update(f"G{row_idx}", [[count]])
-                        st.success("충전 완료! 새로고침 해주세요.")
-                        st.stop()
-            else:
-                if today_logged:
-                    if st.radio("오늘 이미 방문 기록이 있습니다. 추가로 입력할까요?", ["Y", "N"], key="repeat") == "Y":
-                        if st.button("📌 추가 방문 기록 입력"):
-                            customer, row_idx, _ = get_customer(selected_plate)
-                            try:
-                                remaining = int(customer.get("남은 이용 횟수", 0)) - 1
-                                count = int(customer.get("총 방문 횟수", 0)) + 1
-                                visit_log = customer.get("방문기록", "")
-                                new_log = f"{visit_log}, {now_str} (1)"
-                                worksheet.update(f"D{row_idx}", [[today]])
-                                worksheet.update(f"E{row_idx}", [[count]])
-                                worksheet.update(f"G{row_idx}", [[remaining]])
-                                worksheet.update(f"I{row_idx}", [[new_log]])
-                                st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
-                                time.sleep(1)
-                                st.experimental_rerun()
-                            except Exception as e:
-                                st.error(f"❌ 업데이트 실패: {e}")
-                else:
-                    if st.button("✅ 오늘 방문 기록 추가"):
-                        customer, row_idx, _ = get_customer(selected_plate)
-                        try:
-                            remaining = int(customer.get("남은 이용 횟수", 0)) - 1
-                            count = int(customer.get("총 방문 횟수", 0)) + 1
-                            visit_log = customer.get("방문기록", "")
-                            new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
-                            worksheet.update(f"D{row_idx}", [[today]])
-                            worksheet.update(f"E{row_idx}", [[count]])
-                            worksheet.update(f"G{row_idx}", [[remaining]])
-                            worksheet.update(f"I{row_idx}", [[new_log]])
-                            st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
-                            time.sleep(1)
-                            st.experimental_rerun()
-                        except Exception as e:
-                            st.error(f"❌ 업데이트 실패: {e}")
-        else:
-            st.info(f"📄 이 고객은 정액제 회원입니다. (상품 옵션: {상품옵션})")
-            if 만료일:
+            if 상품옵션 in ["5회", "10회", "20회"]:
                 try:
-                    expire_date = datetime.strptime(만료일, "%Y-%m-%d").date()
-                    days_left = (expire_date - now.date()).days
-                    if days_left < 0:
-                        st.error("⛔ 회원 기간이 만료되었습니다.")
-                    else:
-                        st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
-                except Exception as e:
-                    st.warning(f"⚠️ 만료일 형식 오류: {e}")
+                    remaining = int(customer.get("남은 이용 횟수", 0))
+                except:
+                    remaining = 0
+
+                if remaining <= 0:
+                    st.warning("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
+                else:
+                    try:
+                        count = int(customer.get("총 방문 횟수", 0)) + 1
+                        visit_log = customer.get("방문기록", "")
+                        new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
+                        remaining -= 1
+
+                        worksheet.update(f"D{row_idx}", [[today]])
+                        worksheet.update(f"E{row_idx}", [[count]])
+                        worksheet.update(f"G{row_idx}", [[remaining]])
+                        worksheet.update(f"I{row_idx}", [[new_log]])
+
+                        st.success(f"✅ 방문 기록이 추가되었습니다. 남은 이용 횟수: {remaining}회.")
+                        time.sleep(1)
+                        st.experimental_rerun()
+                    except Exception as e:
+                        st.error(f"❌ 업데이트 실패: {e}")
             else:
-                st.warning("⚠️ 회원 만료일 정보가 없습니다.")
+                # 정액제 회원은 만료일 안내만
+                st.info(f"📄 정액제 회원입니다. (상품 옵션: {상품옵션})")
+                if 만료일:
+                    try:
+                        expire_date = datetime.strptime(만료일, "%Y-%m-%d").date()
+                        days_left = (expire_date - now.date()).days
+                        if days_left < 0:
+                            st.error("⛔ 회원 기간이 만료되었습니다.")
+                        else:
+                            st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
+                    except Exception as e:
+                        st.warning(f"⚠️ 만료일 형식 오류: {e}")
+                else:
+                    st.warning("⚠️ 회원 만료일 정보가 없습니다.")
 
 # ✅ 신규 고객 등록
 st.markdown("---")
