@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.ipynb - 횟수 기반 회원 시스템 (최종 수정: 충전 후 0건 표시 해결, 데이터 동기화 보완)"""
+"""oasis.ipynb - 횟수 기반 회원 시스템 (최종 수정: 충전 후 즉시 데이터 반영 완전 해결)"""
 
 import streamlit as st
 import gspread
@@ -71,8 +71,13 @@ if st.session_state.matched_customers:
     selected_display = st.selectbox("📋 전체 차량번호 중에서 선택하세요", list(plate_display_map.keys()))
     st.session_state.selected_plate = plate_display_map[selected_display]
 
-    selected_customer = next((r for r in records if r["차량번호"] == st.session_state.selected_plate), None)
-    row_idx = next((i + 2 for i, r in enumerate(records) if r["차량번호"] == st.session_state.selected_plate), None)
+    def reload_customer_data():
+        latest_records = worksheet.get_all_records()
+        customer = next((r for r in latest_records if r["차량번호"] == st.session_state.selected_plate), None)
+        index = next((i + 2 for i, r in enumerate(latest_records) if r["차량번호"] == st.session_state.selected_plate), None)
+        return customer, index
+
+    selected_customer, row_idx = reload_customer_data()
 
     if not selected_customer or not row_idx:
         st.error("❌ 선택한 고객 정보를 찾을 수 없습니다. 다시 검색해 주세요.")
@@ -95,16 +100,11 @@ if st.session_state.matched_customers:
                     worksheet.update(f"G{row_idx}", [[use_count]])
                     st.success("✅ 충전이 완료되었습니다.")
                     time.sleep(1)
-                    # ✅ 최신 데이터 재로드
-                    updated_records = worksheet.get_all_records()
-                    updated_customer = next((r for r in updated_records if r["차량번호"] == st.session_state.selected_plate), None)
-                    st.session_state.matched_customers = [updated_customer] if updated_customer else []
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ 충전 실패: {e}")
         st.stop()
 
-    # ✅ 방문기록 처리 가능 시
     visit_log = selected_customer.get("방문기록", "")
 
     if today in visit_log:
@@ -115,8 +115,9 @@ if st.session_state.matched_customers:
             if repeat_submit:
                 if repeat_choice == "Y":
                     try:
+                        selected_customer, row_idx = reload_customer_data()
                         count = int(selected_customer.get("총 방문 횟수", 0)) + 1
-                        remaining_uses -= 1
+                        remaining_uses = int(selected_customer.get("상품 옵션", 0)) - 1
                         new_log = f"{visit_log}, {now_str} (1)"
                         worksheet.update(f"D{row_idx}", [[today]])
                         worksheet.update(f"E{row_idx}", [[count]])
@@ -134,8 +135,9 @@ if st.session_state.matched_customers:
             confirm = st.form_submit_button("✅ 오늘 방문 기록 추가")
             if confirm:
                 try:
+                    selected_customer, row_idx = reload_customer_data()
                     count = int(selected_customer.get("총 방문 횟수", 0)) + 1
-                    remaining_uses -= 1
+                    remaining_uses = int(selected_customer.get("상품 옵션", 0)) - 1
                     new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
                     worksheet.update(f"D{row_idx}", [[today]])
                     worksheet.update(f"E{row_idx}", [[count]])
