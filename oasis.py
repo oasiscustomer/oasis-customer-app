@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.ipynb - 횟수 기반 회원 시스템"""
+"""oasis.ipynb - 횟수 기반 회원 시스템 (최종 수정: 충전 후 0건 표시 해결)"""
 
 import streamlit as st
 import gspread
@@ -8,19 +8,19 @@ from datetime import datetime
 import pytz
 import time
 
-# ✅ 한국 시간대
+# ✅ 한국 시간대 설정
 tz = pytz.timezone("Asia/Seoul")
 now = datetime.now(tz)
 today = now.strftime("%Y-%m-%d")
 now_str = now.strftime("%Y-%m-%d %H:%M")
 
-# ✅ Google 인증
+# ✅ 구글 인증 설정
 scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 client = gspread.authorize(credentials)
 worksheet = client.open("Oasis Customer Management").sheet1
 
-# ✅ 전화번호 포맷
+# ✅ 전화번호 포맷 정리 함수
 def format_phone_number(phone: str) -> str:
     phone = phone.replace("-", "").strip()
     if len(phone) == 11 and phone.startswith("010"):
@@ -39,11 +39,11 @@ if "selected_plate" not in st.session_state:
 if "clear_fields" not in st.session_state:
     st.session_state.clear_fields = False
 
-# ✅ UI
+# ✅ UI 헤더
 st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템 (횟수 기반)</h1>", unsafe_allow_html=True)
 st.markdown("### 2️⃣ 고객 차량 정보 입력")
 
-# ✅ 차량번호 검색
+# ✅ 차량번호 검색 Form
 with st.form("search_form"):
     search_input = st.text_input("🔎 차량 번호 (전체 또는 끝 4자리)", value=st.session_state.search_input)
     search_submit = st.form_submit_button("🔍 확인")
@@ -94,12 +94,13 @@ if st.session_state.matched_customers:
                     worksheet.update(f"G{row_idx}", [[use_count]])
                     st.success("✅ 충전이 완료되었습니다.")
                     time.sleep(1)
+                    st.session_state.search_input = st.session_state.selected_plate[-4:]  # 검색값 유지
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ 충전 실패: {e}")
         st.stop()
 
-    # ✅ 방문기록 처리 (정상 방문 가능 시)
+    # ✅ 방문기록 처리 가능 시
     visit_log = selected_customer.get("방문기록", "")
 
     if today in visit_log:
