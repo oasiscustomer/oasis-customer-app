@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 전체 안정화: 재등록 시 Indentation 및 날짜 갱신 오류 수정"""
+"""oasis.py - 전체 안정화 최종본: 재등록 메시지 오류 및 차량번호 입력 반응성 개선"""
 
 import streamlit as st
 import gspread
@@ -39,15 +39,12 @@ def get_customer(plate):
 # ✅ UI 제목
 st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
-# ✅ 차량번호 검색
-with st.form("search_form"):
-    search_input = st.text_input("🔎 차량 번호 (전체 또는 끝 4자리)", value=st.session_state.get("search_input", ""))
-    submitted = st.form_submit_button("🔍 확인")
-
-if submitted and search_input.strip():
-    st.session_state.search_input = search_input.strip()
+# ✅ 차량번호 실시간 입력 (Form 제거)
+search_input = st.text_input("🔎 차량 번호 (전체 또는 끝 4자리)", key="search_input")
+matched = []
+if search_input.strip():
     records = worksheet.get_all_records()
-    matched = [r for r in records if st.session_state.search_input in str(r.get("차량번호", ""))]
+    matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
 
     def format_option_label(r):
         옵션 = r.get('상품 옵션', '')
@@ -120,7 +117,6 @@ if st.session_state.get("matched_plate"):
                     days_left = (expire_date - now.date()).days
                     if days_left < 0:
                         st.error("⛔ 회원 기간이 만료되었습니다.")
-
                         choice = st.radio("⏳ 회원이 만료되었습니다. 재등록 하시겠습니까?", ["예", "아니오"])
                         if choice == "예":
                             new_option = st.selectbox("새 상품 옵션을 선택하세요", ["5회", "10회", "20회"])
@@ -135,6 +131,7 @@ if st.session_state.get("matched_plate"):
                                 st.success("✅ 재등록이 완료되었습니다.")
                                 time.sleep(1)
                                 st.rerun()
+                                st.stop()
                     else:
                         st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
                 except:
