@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 전체 안정화 버전: 고객 선택 항목 오류 제거 및 완전 동작"""
+"""oasis.py - 재등록 로직 추가: 만료된 정회원도 회차제로 전환 가능"""
 
 import streamlit as st
 import gspread
@@ -72,7 +72,7 @@ if st.session_state.get("matched_plate") and st.session_state.get("matched_optio
     except:
         st.session_state.matched_plate = values[0]
 
-# ✅ 고객 처리: 버튼 클릭 시 무조건 차감 구조
+# ✅ 고객 처리
 if st.session_state.get("matched_plate"):
     customer, row_idx, _ = get_customer(st.session_state.matched_plate)
     if customer and row_idx:
@@ -120,6 +120,20 @@ if st.session_state.get("matched_plate"):
                     days_left = (expire_date - now.date()).days
                     if days_left < 0:
                         st.error("⛔ 회원 기간이 만료되었습니다.")
+
+                        choice = st.radio("⏳ 회원이 만료되었습니다. 재등록 하시겠습니까?", ["예", "아니오"])
+                        if choice == "예":
+                            new_option = st.selectbox("새 상품 옵션을 선택하세요", ["5회", "10회", "20회"])
+                            confirm = st.button("🎯 재등록 완료")
+                            if confirm:
+                                count = int(new_option.replace("회", ""))
+                                worksheet.update(f"F{row_idx}", [[new_option]])
+                                worksheet.update(f"G{row_idx}", [[count]])
+                                worksheet.update(f"H{row_idx}", [[""]])
+                                worksheet.update(f"E{row_idx}", [[0]])
+                                st.success("✅ 재등록이 완료되었습니다.")
+                                time.sleep(1)
+                                st.rerun()
                     else:
                         st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
                 except:
