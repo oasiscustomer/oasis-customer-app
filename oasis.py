@@ -49,6 +49,11 @@ if submitted and search_input.strip():
     records = worksheet.get_all_records()
     matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
 
+    if not matched:
+        st.info("🚫 등록되지 않은 차량입니다.")
+    records = worksheet.get_all_records()
+    matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
+
     def format_option_label(r):
         옵션 = r.get('상품 옵션', '')
         if 옵션 in ['5회', '10회', '20회']:
@@ -96,11 +101,11 @@ if st.session_state.get("matched_plate"):
             if st.button("✅ 오늘 방문 기록 추가"):
                 if remaining <= 0:
                     st.error("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
-                    recharge = st.selectbox("🔄 충전할 이용권을 선택하세요", ["5회", "10회", "20회"])
+                    recharge = st.selectbox("🔄 충전할 이용권을 선택하세요", ["5회", "10회", "20회"], key="recharge_option")
                     confirm_recharge = st.button("💳 이용권 충전")
                     if confirm_recharge:
-                        recharge_count = int(recharge.replace("회", ""))
-                        worksheet.update(f"F{row_idx}", [[recharge]])
+                        recharge_count = int(st.session_state.recharge_option.replace("회", ""))
+                        worksheet.update(f"F{row_idx}", [[st.session_state.recharge_option]])
                         worksheet.update(f"G{row_idx}", [[recharge_count]])
                         worksheet.update(f"C{row_idx}", [[today]])
                         st.success(f"✅ {recharge}로 충전이 완료되었습니다.")
