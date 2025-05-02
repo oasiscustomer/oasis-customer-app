@@ -57,7 +57,7 @@ if submitted and search_input.strip():
     else:
         def format_option_label(r):
             옵션 = r.get('상품 옵션', '')
-            if any(x in 옵션 for x in ['5회권', '10회권']):
+            if any(x in 옵션 for x in ['1회권', '5회권', '10회권']):
                 return f"{r.get('차량번호')}"
             return f"{r.get('차량번호')} -> {옵션}"
 
@@ -90,7 +90,7 @@ if st.session_state.get("matched_plate"):
         st.markdown(f"### 🚘 선택된 차량번호: `{st.session_state.matched_plate}`")
         st.markdown(f"**상품 옵션:** {상품옵션} | **상품명:** {상품명}")
 
-        if any(x in 상품옵션 for x in ["5회권", "10회권"]):
+        if any(x in 상품옵션 for x in ["1회권", "5회권", "10회권"]):
             try:
                 remaining = int(customer.get("남은 이용 횟수", 0))
             except:
@@ -102,9 +102,9 @@ if st.session_state.get("matched_plate"):
                 st.error("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
                 if "recharge_option" not in st.session_state:
                     st.session_state.recharge_option = "일반 5회권"
-                st.selectbox("🔄 충전할 이용권을 선택하세요", ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권"], key="recharge_option")
+                st.selectbox("🔄 충전할 이용권을 선택하세요", ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"], key="recharge_option")
                 if st.button("💳 이용권 충전"):
-                    recharge_count = int('5' if '5회' in st.session_state.recharge_option else '10')
+                    recharge_count = int('1' if '1회' in st.session_state.recharge_option else ('5' if '5회' in st.session_state.recharge_option else '10'))
                     worksheet.update(f"F{row_idx}", [[st.session_state.recharge_option]])
                     worksheet.update(f"G{row_idx}", [[recharge_count]])
                     worksheet.update(f"C{row_idx}", [[today]])
@@ -139,10 +139,10 @@ if st.session_state.get("matched_plate"):
                         st.error("⛔ 회원 기간이 만료되었습니다.")
                         choice = st.radio("⏳ 회원이 만료되었습니다. 재등록 하시겠습니까?", ["예", "아니오"])
                         if choice == "예":
-                            new_option = st.selectbox("새 상품 옵션을 선택하세요", ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권"])
+                            new_option = st.selectbox("새 상품 옵션을 선택하세요", ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"])
                             confirm = st.button("🎯 재등록 완료")
                             if confirm:
-                                count = int('5' if '5회' in new_option else '10')
+                                count = int('1' if '1회' in new_option else ('5' if '5회' in new_option else '10'))
                                 worksheet.update(f"C{row_idx}", [[today]])
                                 worksheet.update(f"F{row_idx}", [[new_option]])
                                 worksheet.update(f"G{row_idx}", [[count]])
@@ -182,7 +182,7 @@ st.markdown("🆕 신규 고객 등록")
 with st.form("register_form"):
     new_plate = st.text_input("🚘 차량번호", key="new_plate")
     new_phone = st.text_input("📞 전화번호", key="new_phone")
-    new_product = st.selectbox("🧾 이용권", ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권"])
+    new_product = st.selectbox("🧾 이용권", ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"])
     reg_submit = st.form_submit_button("📥 신규 등록")
 
     if reg_submit and new_plate and new_phone:
@@ -193,7 +193,7 @@ with st.form("register_form"):
                 st.warning("🚨 이미 등록된 고객입니다.")
             else:
                 formatted_phone = format_phone_number(new_phone)
-                count = int('5' if '5회' in new_product else '10')
+                count = int('1' if '1회' in new_product else ('5' if '5회' in new_product else '10'))
                 new_row = [new_plate, formatted_phone, today, today, 1, new_product, count, "None", f"{now_str} (1)"]
                 worksheet.append_row(new_row)
                 st.success("✅ 신규 고객 등록 완료")
