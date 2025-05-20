@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 안정화 버전 (정액제 텍스트 '기본(정액제)' 등으로 수정 및 표기 개선 포함)"""
+"""oasis.py - 최종 안정화 버전 (정액제 31일 부여 및 회/일 표기 개선 포함)"""
 
 import streamlit as st
 import gspread
@@ -98,7 +98,6 @@ if st.session_state.get("matched_plate"):
                 remaining = int(customer.get("남은 이용 횟수", 0))
             except:
                 remaining = 0
-
             st.info(f"💡 남은 이용 횟수: {remaining}회")
 
             if remaining <= 0:
@@ -131,7 +130,6 @@ if st.session_state.get("matched_plate"):
             try:
                 expire_date = datetime.strptime(만료일.split()[0], "%Y-%m-%d").date()
                 days_left = (expire_date - now.date()).days
-
                 if days_left < 0:
                     st.error("⛔ 회원 기간이 만료되었습니다.")
                     choice = st.radio("⏳ 회원이 만료되었습니다. 재등록 하시겠습니까?", ["예", "아니오"])
@@ -139,10 +137,10 @@ if st.session_state.get("matched_plate"):
                         new_option = st.selectbox("새 상품 옵션을 선택하세요", 이용권옵션 + 정액제옵션)
                         if st.button("🎯 재등록 완료"):
                             if new_option in 정액제옵션:
-                                expire = now + timedelta(days=29)
+                                expire = now + timedelta(days=30)
                                 worksheet.update(f"C{row_idx}", [[today]])
                                 worksheet.update(f"F{row_idx}", [[new_option]])
-                                worksheet.update(f"G{row_idx}", [[30]])
+                                worksheet.update(f"G{row_idx}", [[31]])
                                 worksheet.update(f"H{row_idx}", [[expire.strftime("%Y-%m-%d")]])
                                 worksheet.update(f"E{row_idx}", [[0]])
                             else:
@@ -156,7 +154,8 @@ if st.session_state.get("matched_plate"):
                             time.sleep(1)
                             st.rerun()
                 else:
-                    st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({days_left}일)")
+                    label = f"{max(days_left, 0)}일"
+                    st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({label})")
                     if st.button("✅ 오늘 방문 기록 추가"):
                         new_count = int(customer.get("총 방문 횟수", 0)) + 1
                         visit_log = customer.get("방문기록", "")
@@ -166,7 +165,7 @@ if st.session_state.get("matched_plate"):
                         worksheet.update(f"G{row_idx}", [[max(days_left - 1, 0)]])
                         worksheet.update(f"I{row_idx}", [[new_log]])
                         time.sleep(1)
-                        st.success("✅ 방문 기록이 추가되었습니다.")
+                        st.success(f"✅ 방문 기록이 추가되었습니다. 남은 기간: {max(days_left - 1, 0)}일")
                         st.rerun()
             except Exception as e:
                 st.warning(f"⚠️ 만료일 형식 오류: {e}")
@@ -190,8 +189,8 @@ with st.form("register_form"):
             else:
                 formatted_phone = format_phone_number(new_phone)
                 if new_product in 정액제옵션:
-                    expire = now + timedelta(days=29)
-                    new_row = [new_plate, formatted_phone, today, today, 1, new_product, 30, expire.strftime("%Y-%m-%d"), f"{now_str} (1)"]
+                    expire = now + timedelta(days=30)
+                    new_row = [new_plate, formatted_phone, today, today, 1, new_product, 31, expire.strftime("%Y-%m-%d"), f"{now_str} (1)"]
                 else:
                     count = int('1' if '1회' in new_product else ('5' if '5회' in new_product else '10'))
                     new_row = [new_plate, formatted_phone, today, today, 1, new_product, count, "None", f"{now_str} (1)"]
