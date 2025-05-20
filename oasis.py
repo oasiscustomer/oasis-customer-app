@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 안정화 버전 (정액제: 기본/프리미엄/스페셜 추가 및 통합)"""
+"""oasis.py - 최종 안정화 버전 (정액제: 기본/프리미엄/스페셜 추가 및 오류 수정 포함)"""
 
 import streamlit as st
 import gspread
@@ -36,6 +36,10 @@ def get_customer(plate):
     row_idx = next((i + 2 for i, r in enumerate(records) if r.get("차량번호") == plate), None)
     return customer, row_idx, records
 
+# ✅ 상품 옵션 리스트 정의 (form 밖에서)
+이용권옵션 = ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"]
+정액제옵션 = ["기본", "프리미엄", "스페셜"]
+
 # ✅ UI 타이틀 표시
 st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
@@ -48,7 +52,7 @@ matched = []
 if submitted and search_input.strip():
     st.session_state["new_plate"] = ""
     st.session_state["new_phone"] = ""
-    st.session_state["recharge_option"] = "일반 5회권"
+    st.session_state["recharge_option"] = 이용권옵션[0]
     records = worksheet.get_all_records()
     matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
 
@@ -67,7 +71,7 @@ if submitted and search_input.strip():
         }
         st.session_state.matched_plate = list(st.session_state.matched_options.values())[0] if st.session_state.matched_options else None
 
-# ✅ 고객 선택 박스 유지
+# ✅ 고객 선택 유지
 if st.session_state.get("matched_plate") and st.session_state.get("matched_options"):
     current_plate = st.session_state.get("matched_plate")
     options = list(st.session_state.matched_options.keys())
@@ -78,7 +82,7 @@ if st.session_state.get("matched_plate") and st.session_state.get("matched_optio
     except:
         st.session_state.matched_plate = values[0]
 
-# ✅ 고객 정보 처리
+# ✅ 고객 처리
 if st.session_state.get("matched_plate"):
     customer, row_idx, _ = get_customer(st.session_state.matched_plate)
     if customer and row_idx:
@@ -88,9 +92,6 @@ if st.session_state.get("matched_plate"):
 
         st.markdown(f"### 🚘 선택된 차량번호: `{st.session_state.matched_plate}`")
         st.markdown(f"**상품 옵션:** {상품옵션}")
-
-        정액제옵션 = ["기본", "프리미엄", "스페셜"]
-        이용권옵션 = ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"]
 
         if 상품옵션 in 이용권옵션:
             try:
@@ -170,7 +171,7 @@ if st.session_state.get("matched_plate"):
             except Exception as e:
                 st.warning(f"⚠️ 만료일 형식 오류: {e}")
 
-# ✅ 신규 고객 등록 폼
+# ✅ 신규 고객 등록
 st.markdown("---")
 st.markdown("🆕 신규 고객 등록")
 
