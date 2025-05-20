@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 안정화 버전 (정액제 명칭 텍스트 변경: 기본/중급/고급)"""
+"""oasis.py - 최종 안정화 버전 (정액제 텍스트 '기본(정액제)' 등으로 수정 및 표기 개선 포함)"""
 
 import streamlit as st
 import gspread
@@ -38,7 +38,7 @@ def get_customer(plate):
 
 # ✅ 상품 옵션 리스트 정의 (form 밖에서)
 이용권옵션 = ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"]
-정액제옵션 = ["기본", "중급", "고급"]
+정액제옵션 = ["기본(정액제)", "중급(정액제)", "고급(정액제)"]
 
 # ✅ UI 타이틀 표시
 st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
