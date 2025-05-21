@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 등록 메시지 및 입력값 초기화 오류 수정 버전"""
+"""oasis.py - 오류 없이 등록 완료 메시지 및 초기화 처리된 완성 코드"""
 
 import streamlit as st
 import gspread
@@ -160,14 +160,18 @@ if st.session_state.get("matched_plate"):
                     st.success("✅ 회수제 추가 등록 완료")
                 st.rerun()
 
-# ✅ 신규 등록
+# ✅ 신규 등록 성공 플래그 초기화
+if "registration_success" not in st.session_state:
+    st.session_state["registration_success"] = False
+
+# ✅ 신규 고객 등록
 st.markdown("---")
 st.subheader("🆕 신규 고객 등록")
 with st.form("register_form"):
-    np = st.text_input("🚘 차량번호", key="new_plate")
-    ph = st.text_input("📞 전화번호", key="new_phone")
-    pj = st.selectbox("정액제 상품", ["None"] + 정액제옵션, key="new_jung")
-    phs = st.selectbox("회수제 상품", ["None"] + 회수제옵션, key="new_hue")
+    np = st.text_input("🚘 차량번호")
+    ph = st.text_input("📞 전화번호")
+    pj = st.selectbox("정액제 상품", ["None"] + 정액제옵션)
+    phs = st.selectbox("회수제 상품", ["None"] + 회수제옵션)
     reg = st.form_submit_button("등록")
 
     if reg and np and ph:
@@ -183,12 +187,10 @@ with st.form("register_form"):
             new_row = [np, phone, today, today, 1, pj if pj != "None" else "", jung_day, phs if phs != "None" else "", cnt, expire, f"{now_str} (신규등록)"]
             worksheet.append_row(new_row)
 
-            st.success(f"✅ 등록이 완료되었습니다!\n차량번호: {np} / 전화번호: {phone}")
-            st.session_state.update({
-                "new_plate": "",
-                "new_phone": "",
-                "new_jung": "None",
-                "new_hue": "None"
-            })
-            time.sleep(2)
+            st.session_state["registration_success"] = True
             st.rerun()
+
+# ✅ 등록 후 메시지 출력 및 입력 상태 초기화
+if st.session_state["registration_success"]:
+    st.success("✅ 등록이 완료되었습니다!")
+    st.session_state["registration_success"] = False
