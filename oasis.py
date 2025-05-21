@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""oasis.py - 오류 없이 등록 완료 메시지 및 초기화 처리된 완성 코드"""
+# oasis.py - 전체 코드: 신규 등록 개선사항 반영 완료
 
 import streamlit as st
 import gspread
@@ -8,7 +7,7 @@ from datetime import datetime, timedelta
 import pytz
 import time
 
-# ✅ 시간 및 인증 설정
+# 시간 및 인증 설정
 now = datetime.now(pytz.timezone("Asia/Seoul"))
 today = now.strftime("%Y-%m-%d")
 now_str = now.strftime("%Y-%m-%d %H:%M")
@@ -20,7 +19,6 @@ worksheet = client.open("Oasis Customer Management").sheet1
 정액제옵션 = ["기본(정액제)", "중급(정액제)", "고급(정액제)"]
 회수제옵션 = ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"]
 
-# ✅ 전화번호 포맷
 def format_phone_number(phone: str) -> str:
     phone = phone.replace("-", "").strip()
     if len(phone) == 11 and phone.startswith("010"):
@@ -29,36 +27,34 @@ def format_phone_number(phone: str) -> str:
         return f"{phone[:3]}-{phone[3:6]}-{phone[6:]}"
     return phone
 
-# ✅ 고객 검색 함수
 def get_customer(plate):
     records = worksheet.get_all_records()
     customer = next((r for r in records if r.get("차량번호") == plate), None)
     row_idx = next((i + 2 for i, r in enumerate(records) if r.get("차량번호") == plate), None)
     return customer, row_idx, records
 
-# ✅ 메인 화면
-st.markdown("<h1 style='text-align: center;'>🚘 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>\ud83d\ude98 \uc624\uc544\uc2dc\uc2a4 \uace0\uac1d \uad00\ub9ac \uc2dc\uc2a4\ud15c</h1>", unsafe_allow_html=True)
 
 with st.form("search_form"):
-    search_input = st.text_input("🔍 차량 번호 (전체 또는 끝 4자리)", key="search_input")
-    submitted = st.form_submit_button("검색")
+    search_input = st.text_input("\ud83d\udd0d \ucc28\ub7c9 \ubc88\ud638 (\uc804\uccb4 \ub610\ub294 \ub05d 4\uc790\ub9ac)", key="search_input")
+    submitted = st.form_submit_button("\uac80\uc0c9")
 
 matched = []
 if submitted and search_input.strip():
     records = worksheet.get_all_records()
-    matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
+    matched = [r for r in records if search_input.strip() in str(r.get("\ucc28\ub7c9\ubc88\ud638", ""))]
 
     if not matched:
-        st.info("🚫 등록되지 않은 차량입니다.")
+        st.info("\ud83d\udeab \ub4f1\ub85d\ub418\uc9c0 \uc54a\uc740 \ucc28\ub7c9\uc785\ub2c8\ub2e4.")
     else:
         options = {}
         for r in matched:
-            plate = r.get("차량번호")
-            jung = r.get("상품 옵션(정액제)", "")
-            hue = r.get("상품 옵션(회수제)", "")
-            jung_remain = r.get("남은 이용 일수", "")
-            hue_remain = r.get("남은 이용 횟수", "")
-            label = f"{plate} → {jung} {jung_remain}일 / {hue} {hue_remain}회"
+            plate = r.get("\ucc28\ub7c9\ubc88\ud638")
+            jung = r.get("\uc0c1\ud488 \uc635\uc158(\uc815\uc561\uc81c)", "")
+            hue = r.get("\uc0c1\ud488 \uc635\uc158(\ud68c\uc218\uc81c)", "")
+            jung_remain = r.get("\ub0a8\uc740 \uc774\uc6a9 \uc77c\uc218", "")
+            hue_remain = r.get("\ub0a8\uc740 \uc774\uc6a9 \ud69f\uc218", "")
+            label = f"{plate} \u2192 {jung} {jung_remain}\uc77c / {hue} {hue_remain}\ud68c"
             options[label] = plate
         st.session_state.matched_options = options
         st.session_state.matched_plate = list(options.values())[0]
@@ -67,14 +63,16 @@ if st.session_state.get("matched_plate"):
     plate = st.session_state["matched_plate"]
     label_options = list(st.session_state.matched_options.keys())
     value_options = list(st.session_state.matched_options.values())
-    selected = st.selectbox("📋 고객 선택", label_options, index=value_options.index(plate))
+    selected = st.selectbox("\ud83d\udccb \uace0\uac1d \uc120\ud0dd", label_options, index=value_options.index(plate))
     st.session_state.matched_plate = st.session_state.matched_options[selected]
 
     customer, row_idx, _ = get_customer(st.session_state.matched_plate)
     if customer and row_idx:
-        st.markdown(f"### 🚘 선택된 차량: `{plate}`")
+        st.markdown(f"### \ud83d\ude98 \uc120\ud0dd\ub41c \ucc28\ub7c9: `{plate}`")
         상품정액 = customer.get("상품 옵션(정액제)", "")
         상품회수 = customer.get("상품 옵션(회수제)", "")
+        방문기록 = customer.get("방문기록", "")
+        만료일 = customer.get("회원 만료일", "")
 
         try:
             남은일수 = int(customer.get("남은 이용 일수", 0))
@@ -85,8 +83,6 @@ if st.session_state.get("matched_plate"):
         except:
             남은횟수 = 0
 
-        방문기록 = customer.get("방문기록", "")
-        만료일 = customer.get("회원 만료일", "")
         days_left = -999
         if 상품정액:
             try:
@@ -160,25 +156,31 @@ if st.session_state.get("matched_plate"):
                     st.success("✅ 회수제 추가 등록 완료")
                 st.rerun()
 
-# ✅ 신규 등록 성공 플래그 초기화
+# 신규 등록 성공/진행 상태 초기화
 if "registration_success" not in st.session_state:
     st.session_state["registration_success"] = False
+if "registering" not in st.session_state:
+    st.session_state["registering"] = False
 
-# ✅ 신규 고객 등록
+# 신규 고객 등록
 st.markdown("---")
 st.subheader("🆕 신규 고객 등록")
 with st.form("register_form"):
-    np = st.text_input("🚘 차량번호")
-    ph = st.text_input("📞 전화번호")
-    pj = st.selectbox("정액제 상품", ["None"] + 정액제옵션)
-    phs = st.selectbox("회수제 상품", ["None"] + 회수제옵션)
-    reg = st.form_submit_button("등록")
+    np = st.text_input("🚘 차량번호", key="new_plate")
+    ph = st.text_input("📞 전화번호", key="new_phone")
+    pj = st.selectbox("정액제 상품", ["None"] + 정액제옵션, key="new_jung")
+    phs = st.selectbox("회수제 상품", ["None"] + 회수제옵션, key="new_hue")
+
+    disabled = st.session_state["registering"]
+    reg = st.form_submit_button("등록", disabled=disabled)
 
     if reg and np and ph:
+        st.session_state["registering"] = True
         _, _, all_records = get_customer(np)
         exists = any(r.get("차량번호") == np for r in all_records)
         if exists:
             st.warning("🚨 이미 등록된 고객입니다.")
+            st.session_state["registering"] = False
         else:
             phone = format_phone_number(ph)
             jung_day = "30" if pj != "None" else ""
@@ -186,11 +188,14 @@ with st.form("register_form"):
             cnt = 1 if "1회" in phs else (5 if "5회" in phs else (10 if phs != "None" else ""))
             new_row = [np, phone, today, today, 1, pj if pj != "None" else "", jung_day, phs if phs != "None" else "", cnt, expire, f"{now_str} (신규등록)"]
             worksheet.append_row(new_row)
-
             st.session_state["registration_success"] = True
             st.rerun()
 
-# ✅ 등록 후 메시지 출력 및 입력 상태 초기화
 if st.session_state["registration_success"]:
     st.success("✅ 등록이 완료되었습니다!")
+    st.session_state["new_plate"] = ""
+    st.session_state["new_phone"] = ""
+    st.session_state["new_jung"] = "None"
+    st.session_state["new_hue"] = "None"
     st.session_state["registration_success"] = False
+    st.session_state["registering"] = False
