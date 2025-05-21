@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 완성 버전: 정액제/회수제 분리, G열 차감 제거, 중복 가입 UI 포함"""
+"""oasis.py - 등록 완료 메시지 + 입력창 초기화 적용 완성 코드"""
 
 import streamlit as st
 import gspread
@@ -101,7 +101,7 @@ if st.session_state.get("matched_plate"):
         if st.button("✅ 오늘 방문 기록 추가"):
             log_type = None
             if 사용옵션 == "정액제" and 상품정액 and days_left > 0:
-                log_type = "정액제"  # ✅ G열 차감 없음
+                log_type = "정액제"
             elif 사용옵션 == "회수제" and 상품회수 and 남은횟수 > 0:
                 남은횟수 -= 1
                 worksheet.update_cell(row_idx, 9, str(남은횟수))
@@ -119,7 +119,6 @@ if st.session_state.get("matched_plate"):
                 time.sleep(1)
                 st.rerun()
 
-        # 재등록
         if 상품정액 and days_left < 0:
             st.warning("⛔ 정액제 만료되었습니다.")
             sel = st.selectbox("정액제 재등록", 정액제옵션, key="재정액")
@@ -166,10 +165,10 @@ if st.session_state.get("matched_plate"):
 st.markdown("---")
 st.subheader("🆕 신규 고객 등록")
 with st.form("register_form"):
-    np = st.text_input("🚘 차량번호")
-    ph = st.text_input("📞 전화번호")
-    pj = st.selectbox("정액제 상품", ["None"] + 정액제옵션)
-    phs = st.selectbox("회수제 상품", ["None"] + 회수제옵션)
+    np = st.text_input("🚘 차량번호", key="new_plate")
+    ph = st.text_input("📞 전화번호", key="new_phone")
+    pj = st.selectbox("정액제 상품", ["None"] + 정액제옵션, key="new_jung")
+    phs = st.selectbox("회수제 상품", ["None"] + 회수제옵션, key="new_hue")
     reg = st.form_submit_button("등록")
 
     if reg and np and ph:
@@ -184,6 +183,11 @@ with st.form("register_form"):
             cnt = 1 if "1회" in phs else (5 if "5회" in phs else (10 if phs != "None" else ""))
             new_row = [np, phone, today, today, 1, pj if pj != "None" else "", jung_day, phs if phs != "None" else "", cnt, expire, f"{now_str} (신규등록)"]
             worksheet.append_row(new_row)
-            st.success("✅ 신규 고객 등록 완료")
-            time.sleep(1)
+
+            st.success(f"✅ 등록이 완료되었습니다!\n차량번호: {np} / 전화번호: {phone}")
+            st.session_state["new_plate"] = ""
+            st.session_state["new_phone"] = ""
+            st.session_state["new_jung"] = "None"
+            st.session_state["new_hue"] = "None"
+            time.sleep(2)
             st.rerun()
