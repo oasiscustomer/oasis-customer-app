@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 고객선택 남은 일수/횟수 표시 + '1개월' 자동 변환 + 방문 처리 포함 완성 코드"""
+"""oasis.py - G열=남은일수(정액제), I열=남은횟수(회수제) 분리 완전구현 버전"""
 
 import streamlit as st
 import gspread
@@ -8,13 +8,13 @@ from datetime import datetime, timedelta
 import pytz
 import time
 
-# ✅ 한국 시간대 설정
+# ✅ 시간 설정
 tz = pytz.timezone("Asia/Seoul")
 now = datetime.now(tz)
 today = now.strftime("%Y-%m-%d")
 now_str = now.strftime("%Y-%m-%d %H:%M")
 
-# ✅ 구글 인증
+# ✅ 구글 시트 인증
 scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 client = gspread.authorize(credentials)
@@ -32,29 +32,12 @@ def format_phone_number(phone: str) -> str:
         return f"{phone[:3]}-{phone[3:6]}-{phone[6:]}"
     return phone
 
-# ✅ 고객 정보 조회
+# ✅ 고객 조회
 def get_customer(plate):
     records = worksheet.get_all_records()
     customer = next((r for r in records if r.get("차량번호") == plate), None)
     row_idx = next((i + 2 for i, r in enumerate(records) if r.get("차량번호") == plate), None)
     return customer, row_idx, records
-
-# ✅ 1개월 텍스트 자동 변환 버튼
-if st.button("🛠 정액제 '1개월' → 남은 일수 자동 환산"):
-    records = worksheet.get_all_records()
-    count = 0
-    for i, row in enumerate(records):
-        h_val = str(row.get("남은 이용 일수", "")).strip()
-        if h_val == "1개월":
-            try:
-                가입일 = datetime.strptime(row.get("가입날짜"), "%Y-%m-%d").date()
-                만료일 = datetime.strptime(row.get("회원 만료일"), "%Y-%m-%d").date()
-                남은일수 = max(0, (만료일 - now.date()).days)
-                worksheet.update_cell(i + 2, 8, str(남은일수))
-                count += 1
-            except Exception as e:
-                st.warning(f"{i+2}행 변환 실패: {e}")
-    st.success(f"✅ '1개월' → 숫자 변환 완료: {count}건")
 
 # ✅ UI 시작
 st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚘 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
@@ -78,26 +61,9 @@ if submitted and search_input.strip():
             plate = r.get("차량번호")
             jung = r.get("상품 옵션(정액제)", "")
             hue = r.get("상품 옵션(회수제)", "")
-            remain_jung, remain_hue = "", ""
-
-            try:
-                만료일 = r.get("회원 만료일", "")
-                if 만료일 and 만료일.lower() != "none":
-                    exp_date = datetime.strptime(만료일, "%Y-%m-%d").date()
-                    days_left = (exp_date - now.date()).days
-                    if days_left >= 0:
-                        remain_jung = f"{days_left}일"
-            except:
-                pass
-
-            try:
-                cnt = int(r.get("남은 이용 횟수", 0))
-                if cnt > 0:
-                    remain_hue = f"{cnt}회"
-            except:
-                pass
-
-            label = f"{plate} → {jung} {remain_jung} / {hue} {remain_hue}"
+            jung_remain = r.get("남은 이용 일수", "")
+            hue_remain = r.get("남은 이용 횟수", "")
+            label = f"{plate} → {jung} {jung_remain}일 / {hue} {hue_remain}회"
             options_dict[label] = plate
 
         st.session_state.matched_options = options_dict
@@ -110,7 +76,7 @@ if st.session_state.get("matched_plate") and st.session_state.get("matched_optio
     selected_label = st.selectbox("📋 고객 선택", options, index=values.index(current_plate))
     st.session_state.matched_plate = st.session_state.matched_options[selected_label]
 
-# ✅ 방문 처리 및 등록 기능 전체 포함
+# ✅ 방문 처리 및 상태 관리
 if st.session_state.get("matched_plate"):
     customer, row_idx, _ = get_customer(st.session_state.matched_plate)
     if customer and row_idx:
@@ -119,11 +85,11 @@ if st.session_state.get("matched_plate"):
         상품회수 = customer.get("상품 옵션(회수제)", "")
 
         try:
-            남은일수 = int(customer.get("남은 이용 일수", 0)) if customer.get("남은 이용 일수") not in [None, ""] else 0
+            남은일수 = int(customer.get("남은 이용 일수", 0))
         except:
             남은일수 = 0
         try:
-            남은횟수 = int(customer.get("남은 이용 횟수", 0)) if customer.get("남은 이용 횟수") not in [None, ""] else 0
+            남은횟수 = int(customer.get("남은 이용 횟수", 0))
         except:
             남은횟수 = 0
 
@@ -143,9 +109,9 @@ if st.session_state.get("matched_plate"):
 
         if st.button("✅ 오늘 방문 기록 추가"):
             log_type = None
-            if 사용옵션 == "정액제" and 상품정액 and days_left >= 0 and 남은일수 > 0:
+            if 사용옵션 == "정액제" and 상품정액 and days_left > 0 and 남은일수 > 0:
                 남은일수 -= 1
-                worksheet.update_cell(row_idx, 8, str(남은일수))
+                worksheet.update_cell(row_idx, 7, str(남은일수))
                 log_type = "정액제"
             elif 사용옵션 == "회수제" and 상품회수 and 남은횟수 > 0:
                 남은횟수 -= 1
@@ -159,7 +125,7 @@ if st.session_state.get("matched_plate"):
                 new_log = f"{방문기록}, {now_str} ({log_type})" if 방문기록 else f"{now_str} ({log_type})"
                 worksheet.update_cell(row_idx, 4, today)
                 worksheet.update_cell(row_idx, 5, str(new_count))
-                worksheet.update_cell(row_idx, 10, new_log)
+                worksheet.update_cell(row_idx, 11, new_log)
                 st.success(f"✅ {log_type} 방문 기록이 저장되었습니다.")
                 time.sleep(1)
                 st.rerun()
@@ -170,8 +136,8 @@ if st.session_state.get("matched_plate"):
             if st.button("📅 정액제 재등록"):
                 expire = now + timedelta(days=30)
                 worksheet.update_cell(row_idx, 6, new_option)
-                worksheet.update_cell(row_idx, 8, "30")
-                worksheet.update_cell(row_idx, 9, expire.strftime("%Y-%m-%d"))
+                worksheet.update_cell(row_idx, 7, "30")
+                worksheet.update_cell(row_idx, 10, expire.strftime("%Y-%m-%d"))
                 st.success("✅ 정액제 재등록 완료")
                 st.rerun()
 
@@ -181,7 +147,7 @@ if st.session_state.get("matched_plate"):
             if st.button("🔁 회수제 충전"):
                 count = 1 if "1회" in new_option else (5 if "5회" in new_option else 10)
                 worksheet.update_cell(row_idx, 9, str(count))
-                worksheet.update_cell(row_idx, 7, new_option)
+                worksheet.update_cell(row_idx, 8, new_option)
                 st.success("✅ 회수제 충전 완료")
                 st.rerun()
 
@@ -205,7 +171,7 @@ with st.form("register_form"):
             jung_day = "30" if new_jung != "None" else ""
             expire = (now + timedelta(days=30)).strftime("%Y-%m-%d") if new_jung != "None" else "None"
             hue_count = 1 if "1회" in new_hue else (5 if "5회" in new_hue else (10 if new_hue != "None" else ""))
-            new_row = [new_plate, formatted_phone, today, today, 1, new_jung if new_jung != "None" else "", new_hue if new_hue != "None" else "", hue_count, expire, f"{now_str} (신규등록)"]
+            new_row = [new_plate, formatted_phone, today, today, 1, new_jung if new_jung != "None" else "", jung_day, new_hue if new_hue != "None" else "", hue_count, expire, f"{now_str} (신규등록)"]
             worksheet.append_row(new_row)
             st.success("✅ 신규 고객 등록 완료")
             time.sleep(1)
