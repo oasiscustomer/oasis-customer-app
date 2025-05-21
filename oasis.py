@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 등록 완료 메시지 + 입력창 초기화 적용 완성 코드"""
+"""oasis.py - 등록 메시지 및 입력값 초기화 오류 수정 버전"""
 
 import streamlit as st
 import gspread
@@ -140,7 +140,6 @@ if st.session_state.get("matched_plate"):
                 st.success("✅ 회수제 충전 완료")
                 st.rerun()
 
-        # 추가 상품 등록 UI
         with st.form("add_product_form"):
             st.markdown("---")
             st.subheader("➕ 기존 고객 추가 상품 등록")
@@ -185,9 +184,11 @@ with st.form("register_form"):
             worksheet.append_row(new_row)
 
             st.success(f"✅ 등록이 완료되었습니다!\n차량번호: {np} / 전화번호: {phone}")
-            st.session_state["new_plate"] = ""
-            st.session_state["new_phone"] = ""
-            st.session_state["new_jung"] = "None"
-            st.session_state["new_hue"] = "None"
+            st.session_state.update({
+                "new_plate": "",
+                "new_phone": "",
+                "new_jung": "None",
+                "new_hue": "None"
+            })
             time.sleep(2)
             st.rerun()
