@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 안정화 버전 (정액제 31일 부여 및 회/일 표기 개선 포함)"""
+"""oasis.py - 최종 안정화 버전 (정액제 31일, 회/일 UI 표기, 재등록 UI 문제 해결 포함)"""
 
 import streamlit as st
 import gspread
@@ -14,7 +14,7 @@ now = datetime.now(tz)
 today = now.strftime("%Y-%m-%d")
 now_str = now.strftime("%Y-%m-%d %H:%M")
 
-# ✅ Google 인증 설정
+# ✅ 구글 인증
 scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 client = gspread.authorize(credentials)
@@ -29,21 +29,21 @@ def format_phone_number(phone: str) -> str:
         return f"{phone[:3]}-{phone[3:6]}-{phone[6:]}"
     return phone
 
-# ✅ 고객 정보 검색 함수
+# ✅ 고객 정보 조회
 def get_customer(plate):
     records = worksheet.get_all_records()
     customer = next((r for r in records if r.get("차량번호") == plate), None)
     row_idx = next((i + 2 for i, r in enumerate(records) if r.get("차량번호") == plate), None)
     return customer, row_idx, records
 
-# ✅ 상품 옵션 리스트 정의 (form 밖에서)
+# ✅ 상품 옵션
 이용권옵션 = ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"]
 정액제옵션 = ["기본(정액제)", "중급(정액제)", "고급(정액제)"]
 
-# ✅ UI 타이틀 표시
+# ✅ UI 시작
 st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
-# ✅ 차량번호 검색 폼
+# ✅ 검색
 with st.form("search_form"):
     search_input = st.text_input("🔎 차량 번호 (전체 또는 끝 4자리)", key="search_input")
     submitted = st.form_submit_button("🔍 확인")
@@ -59,28 +59,18 @@ if submitted and search_input.strip():
     if not matched:
         st.info("🚫 등록되지 않은 차량입니다.")
     else:
-        def format_option_label(r):
-            옵션 = r.get('상품 옵션', '')
-            if 옵션:
-                return f"{r.get('차량번호')} -> {옵션}"
-            return f"{r.get('차량번호')}"
-
         st.session_state.matched_options = {
-            format_option_label(r): r.get("차량번호")
-            for r in matched if r.get("차량번호")
+            f"{r.get('차량번호')} -> {r.get('상품 옵션', '')}": r.get("차량번호") for r in matched if r.get("차량번호")
         }
-        st.session_state.matched_plate = list(st.session_state.matched_options.values())[0] if st.session_state.matched_options else None
+        st.session_state.matched_plate = list(st.session_state.matched_options.values())[0]
 
 # ✅ 고객 선택 유지
 if st.session_state.get("matched_plate") and st.session_state.get("matched_options"):
     current_plate = st.session_state.get("matched_plate")
     options = list(st.session_state.matched_options.keys())
     values = list(st.session_state.matched_options.values())
-    try:
-        selected_label = st.selectbox("📋 고객 선택", options, index=values.index(current_plate))
-        st.session_state.matched_plate = st.session_state.matched_options[selected_label]
-    except:
-        st.session_state.matched_plate = values[0]
+    selected_label = st.selectbox("📋 고객 선택", options, index=values.index(current_plate))
+    st.session_state.matched_plate = st.session_state.matched_options[selected_label]
 
 # ✅ 고객 처리
 if st.session_state.get("matched_plate"):
@@ -94,10 +84,7 @@ if st.session_state.get("matched_plate"):
         st.markdown(f"**상품 옵션:** {상품옵션}")
 
         if 상품옵션 in 이용권옵션:
-            try:
-                remaining = int(customer.get("남은 이용 횟수", 0))
-            except:
-                remaining = 0
+            remaining = int(customer.get("남은 이용 횟수", 0))
             st.info(f"💡 남은 이용 횟수: {remaining}회")
 
             if remaining <= 0:
@@ -114,7 +101,6 @@ if st.session_state.get("matched_plate"):
                     st.rerun()
             else:
                 if st.button("✅ 오늘 방문 기록 추가"):
-                    visit_log = customer.get("방문기록", "")
                     new_count = int(customer.get("총 방문 횟수", 0)) + 1
                     remaining -= 1
                     new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
@@ -122,7 +108,6 @@ if st.session_state.get("matched_plate"):
                     worksheet.update(f"E{row_idx}", [[new_count]])
                     worksheet.update(f"G{row_idx}", [[remaining]])
                     worksheet.update(f"I{row_idx}", [[new_log]])
-                    time.sleep(1)
                     st.success(f"✅ 방문 기록이 추가되었습니다. 남은 횟수: {remaining}회")
                     st.rerun()
 
@@ -130,9 +115,10 @@ if st.session_state.get("matched_plate"):
             try:
                 expire_date = datetime.strptime(만료일.split()[0], "%Y-%m-%d").date()
                 days_left = (expire_date - now.date()).days
+                label = f"{max(days_left, 0)}일"
                 if days_left < 0:
                     st.error("⛔ 회원 기간이 만료되었습니다.")
-                    choice = st.radio("⏳ 회원이 만료되었습니다. 재등록 하시겠습니까?", ["예", "아니오"])
+                    choice = st.radio("⏳ 회원이 만료되었습니다. 재등록 하시겠습니까?", ["예", "아니오"], key="rejoin_radio")
                     if choice == "예":
                         new_option = st.selectbox("새 상품 옵션을 선택하세요", 이용권옵션 + 정액제옵션)
                         if st.button("🎯 재등록 완료"):
@@ -154,17 +140,14 @@ if st.session_state.get("matched_plate"):
                             time.sleep(1)
                             st.rerun()
                 else:
-                    label = f"{max(days_left, 0)}일"
                     st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({label})")
                     if st.button("✅ 오늘 방문 기록 추가"):
                         new_count = int(customer.get("총 방문 횟수", 0)) + 1
-                        visit_log = customer.get("방문기록", "")
                         new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
                         worksheet.update(f"D{row_idx}", [[today]])
                         worksheet.update(f"E{row_idx}", [[new_count]])
                         worksheet.update(f"G{row_idx}", [[max(days_left - 1, 0)]])
                         worksheet.update(f"I{row_idx}", [[new_log]])
-                        time.sleep(1)
                         st.success(f"✅ 방문 기록이 추가되었습니다. 남은 기간: {max(days_left - 1, 0)}일")
                         st.rerun()
             except Exception as e:
