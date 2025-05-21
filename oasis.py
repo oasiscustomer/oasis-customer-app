@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 실전 모바일 사용 최적화 + 정액제/회수제 중복관리 완성 버전"""
+"""oasis.py - 정액제/회수제 사용자 선택 사용 방식 + 오류 수정 버전"""
 
 import streamlit as st
 import gspread
@@ -76,8 +76,16 @@ if st.session_state.get("matched_plate"):
         st.markdown(f"### 🚘 차량번호: `{st.session_state.matched_plate}`")
         상품정액 = customer.get("상품 옵션(정액제)", "")
         상품회수 = customer.get("상품 옵션(회수제)", "")
-        남은일수 = int(customer.get("남은 이용 일수", 0)) if customer.get("남은 이용 일수") else 0
-        남은횟수 = int(customer.get("남은 이용 횟수", 0)) if customer.get("남은 이용 횟수") else 0
+
+        try:
+            남은일수 = int(customer.get("남은 이용 일수", 0)) if customer.get("남은 이용 일수") not in [None, ""] else 0
+        except:
+            남은일수 = 0
+        try:
+            남은횟수 = int(customer.get("남은 이용 횟수", 0)) if customer.get("남은 이용 횟수") not in [None, ""] else 0
+        except:
+            남은횟수 = 0
+
         만료일 = customer.get("회원 만료일", "")
         방문기록 = customer.get("방문기록", "")
 
@@ -90,18 +98,20 @@ if st.session_state.get("matched_plate"):
             except:
                 days_left = -999
 
+        사용옵션 = st.radio("사용할 이용권을 선택하세요", ["정액제", "회수제"])
+
         if st.button("✅ 오늘 방문 기록 추가"):
             log_type = None
-            if 상품정액 and days_left >= 0:
+            if 사용옵션 == "정액제" and 상품정액 and days_left >= 0 and 남은일수 > 0:
                 남은일수 -= 1
                 worksheet.update_cell(row_idx, 7, str(남은일수))
                 log_type = "정액제"
-            elif 상품회수 and 남은횟수 > 0:
+            elif 사용옵션 == "회수제" and 상품회수 and 남은횟수 > 0:
                 남은횟수 -= 1
                 worksheet.update_cell(row_idx, 8, str(남은횟수))
                 log_type = "회수제"
             else:
-                st.warning("⛔ 사용 가능한 이용권이 없습니다. 재등록해주세요.")
+                st.warning("⛔ 선택한 이용권을 사용할 수 없습니다.")
 
             if log_type:
                 new_count = int(customer.get("총 방문 횟수", 0)) + 1
@@ -113,7 +123,6 @@ if st.session_state.get("matched_plate"):
                 time.sleep(1)
                 st.rerun()
 
-        # 🔁 정액제 재등록
         if 상품정액 and days_left < 0:
             st.warning("⛔ 정액제 만료되었습니다.")
             new_option = st.selectbox("정액제 재등록", 정액제옵션, key="정액재등록")
@@ -125,7 +134,6 @@ if st.session_state.get("matched_plate"):
                 st.success("✅ 정액제 재등록 완료")
                 st.rerun()
 
-        # 🔁 회수제 재등록
         if 상품회수 and 남은횟수 <= 0:
             st.warning("⛔ 회수제 소진되었습니다.")
             new_option = st.selectbox("회수제 충전", 회수제옵션, key="회수재등록")
