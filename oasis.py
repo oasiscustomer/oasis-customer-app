@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 전체 통합 완성본 (오류 없음 / 입력 초기화 포함 / 중복 방지 처리 완료)"""
+"""oasis.py - 완전한 전체 코드 통합본 (Streamlit 오류 해결 / 입력창 초기화 / 중복 방지 포함)"""
 
 import streamlit as st
 import gspread
@@ -20,7 +20,6 @@ worksheet = client.open("Oasis Customer Management").sheet1
 정액제옵션 = ["기본(정액제)", "중급(정액제)", "고급(정액제)"]
 회수제옵션 = ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"]
 
-# ✅ 전화번호 포맷 함수
 def format_phone_number(phone: str) -> str:
     phone = phone.replace("-", "").strip()
     if len(phone) == 11 and phone.startswith("010"):
@@ -29,23 +28,21 @@ def format_phone_number(phone: str) -> str:
         return f"{phone[:3]}-{phone[3:6]}-{phone[6:]}"
     return phone
 
-# ✅ 고객 정보 조회 함수
 def get_customer(plate):
     records = worksheet.get_all_records()
     customer = next((r for r in records if r.get("차량번호") == plate), None)
     row_idx = next((i + 2 for i, r in enumerate(records) if r.get("차량번호") == plate), None)
     return customer, row_idx, records
 
+# ✅ 초기 세션 상태 변수 선언
+for key in ["registration_success", "registering", "reset_form", "matched_plate"]:
+    if key not in st.session_state:
+        st.session_state[key] = False
+
 # ✅ 메인 타이틀
 st.markdown("<h1 style='text-align: center;'>🚘 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
-# ✅ 상태 변수 초기화
-if "registration_success" not in st.session_state:
-    st.session_state["registration_success"] = False
-if "registering" not in st.session_state:
-    st.session_state["registering"] = False
-
-# ✅ 검색 폼
+# ✅ 검색 기능
 with st.form("search_form"):
     search_input = st.text_input("🔍 차량 번호 (전체 또는 끝 4자리)", key="search_input")
     submitted = st.form_submit_button("검색")
@@ -54,7 +51,6 @@ matched = []
 if submitted and search_input.strip():
     records = worksheet.get_all_records()
     matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
-
     if not matched:
         st.info("🚫 등록되지 않은 차량입니다.")
     else:
@@ -70,7 +66,7 @@ if submitted and search_input.strip():
         st.session_state.matched_options = options
         st.session_state.matched_plate = list(options.values())[0]
 
-# ✅ 기존 고객 관리 UI
+# ✅ 기존 고객 관리 화면
 if st.session_state.get("matched_plate"):
     plate = st.session_state["matched_plate"]
     label_options = list(st.session_state.matched_options.keys())
@@ -171,21 +167,25 @@ if st.session_state.get("matched_plate"):
 # ✅ 신규 고객 등록
 st.markdown("---")
 st.subheader("🆕 신규 고객 등록")
+
+np_value = "" if st.session_state.reset_form else None
+ph_value = "" if st.session_state.reset_form else None
+
 with st.form("register_form"):
-    np = st.text_input("🚘 차량번호", key="new_plate")
-    ph = st.text_input("📞 전화번호", key="new_phone")
+    np = st.text_input("🚘 차량번호", value=np_value, key="new_plate")
+    ph = st.text_input("📞 전화번호", value=ph_value, key="new_phone")
     pj = st.selectbox("정액제 상품", ["None"] + 정액제옵션, key="new_jung")
     phs = st.selectbox("회수제 상품", ["None"] + 회수제옵션, key="new_hue")
 
-    reg = st.form_submit_button("등록", disabled=st.session_state["registering"])
+    reg = st.form_submit_button("등록", disabled=st.session_state.registering)
 
     if reg and np and ph:
-        st.session_state["registering"] = True
+        st.session_state.registering = True
         _, _, all_records = get_customer(np)
         exists = any(r.get("차량번호") == np for r in all_records)
         if exists:
             st.warning("🚨 이미 등록된 고객입니다.")
-            st.session_state["registering"] = False
+            st.session_state.registering = False
         else:
             phone = format_phone_number(ph)
             jung_day = "30" if pj != "None" else ""
@@ -193,14 +193,12 @@ with st.form("register_form"):
             cnt = 1 if "1회" in phs else (5 if "5회" in phs else (10 if phs != "None" else ""))
             new_row = [np, phone, today, today, 1, pj if pj != "None" else "", jung_day, phs if phs != "None" else "", cnt, expire, f"{now_str} (신규등록)"]
             worksheet.append_row(new_row)
-            st.session_state["registration_success"] = True
+            st.session_state.registration_success = True
+            st.session_state.reset_form = True
             st.rerun()
 
-if st.session_state["registration_success"]:
+if st.session_state.registration_success:
     st.success("✅ 등록이 완료되었습니다!")
-    st.session_state["new_plate"] = ""
-    st.session_state["new_phone"] = ""
-    st.session_state["new_jung"] = "None"
-    st.session_state["new_hue"] = "None"
-    st.session_state["registration_success"] = False
-    st.session_state["registering"] = False
+    st.session_state.registration_success = False
+    st.session_state.registering = False
+    st.session_state.reset_form = False
