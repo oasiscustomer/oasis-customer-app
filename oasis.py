@@ -12,13 +12,13 @@ now = datetime.now(tz)
 today = now.strftime("%Y-%m-%d")
 now_str = now.strftime("%Y-%m-%d %H:%M")
 
-# ✅ Google 인증
+# ✅ 구글 인증
 scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 client = gspread.authorize(credentials)
 worksheet = client.open("Oasis Customer Management").sheet1
 
-# ✅ 전화번호 포맷
+# ✅ 전화번호 포맷 함수
 def format_phone_number(phone: str) -> str:
     phone = phone.replace("-", "").strip()
     if len(phone) == 11 and phone.startswith("010"):
@@ -27,7 +27,7 @@ def format_phone_number(phone: str) -> str:
         return f"{phone[:3]}-{phone[3:6]}-{phone[6:]}"
     return phone
 
-# ✅ 고객 조회
+# ✅ 고객 정보 재조회
 def get_customer(plate):
     records = worksheet.get_all_records()
     customer = next((r for r in records if r.get("차량번호") == plate), None)
@@ -41,7 +41,7 @@ def get_customer(plate):
 # ✅ UI 시작
 st.markdown("<h1 style='text-align: center; font-size: 22px;'>🚗 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
-# ✅ 검색 UI
+# ✅ 차량번호 검색
 with st.form("search_form"):
     search_input = st.text_input("🔎 차량 번호 (전체 또는 끝 4자리)", key="search_input")
     submitted = st.form_submit_button("🔍 확인")
@@ -75,14 +75,12 @@ if st.session_state.get("matched_plate"):
         상품옵션 = customer.get("상품 옵션", "").strip()
         만료일 = customer.get("회원 만료일", "")
         visit_log = customer.get("방문기록", "")
-
         st.markdown(f"### 🚘 선택된 차량번호: `{st.session_state.matched_plate}`")
         st.markdown(f"**상품 옵션:** {상품옵션}")
 
         if 상품옵션 in 이용권옵션:
             remaining = int(customer.get("남은 이용 횟수", 0))
             st.info(f"💡 남은 이용 횟수: {remaining}회")
-
             if remaining <= 0:
                 st.error("⛔ 이용횟수가 0건입니다. 재충전이 필요합니다.")
                 st.selectbox("🔄 충전할 이용권을 선택하세요", 이용권옵션, key="recharge_option")
@@ -110,36 +108,33 @@ if st.session_state.get("matched_plate"):
         elif 상품옵션 in 정액제옵션:
             try:
                 expire_date = datetime.strptime(만료일.split()[0], "%Y-%m-%d").date()
-                days_left = (expire_date - now.date()).days
-                label = f"{max(days_left, 0)}일"
-
-                if days_left < 0:
-                    st.error("⛔ 회원 기간이 만료되었습니다.")
+                today_date = now.date()
+                days_left = (expire_date - today_date).days
+                st.info(f"📆 회원 만료일: {expire_date}")
+                if days_left < 0 or int(customer.get("남은 이용 횟수", 0)) <= 0:
+                    st.error("⛔ 정액제 회원 기간이 만료되었습니다.")
                     st.markdown("### 🔁 재등록 진행")
-                    choice = st.radio("재등록 하시겠습니까?", ["예", "아니오"], key="rejoin_choice")
-                    st.selectbox("새 상품 옵션을 선택하세요", 이용권옵션 + 정액제옵션, key="rejoin_option")
-                    if choice == "예":
-                        if st.button("🎯 재등록 완료"):
-                            new_option = st.session_state["rejoin_option"]
-                            if new_option in 정액제옵션:
-                                expire = now + timedelta(days=30)
-                                worksheet.update(f"C{row_idx}", [[today]])
-                                worksheet.update(f"F{row_idx}", [[new_option]])
-                                worksheet.update(f"G{row_idx}", [[31]])
-                                worksheet.update(f"H{row_idx}", [[expire.strftime("%Y-%m-%d")]])
-                                worksheet.update(f"E{row_idx}", [[0]])
-                            else:
-                                count = int('1' if '1회' in new_option else ('5' if '5회' in new_option else '10'))
-                                worksheet.update(f"C{row_idx}", [[today]])
-                                worksheet.update(f"F{row_idx}", [[new_option]])
-                                worksheet.update(f"G{row_idx}", [[count]])
-                                worksheet.update(f"H{row_idx}", [["None"]])
-                                worksheet.update(f"E{row_idx}", [[0]])
-                            st.success("✅ 재등록 완료")
-                            time.sleep(1)
-                            st.rerun()
+                    new_option = st.selectbox("새 상품 옵션을 선택하세요", 이용권옵션 + 정액제옵션, key="rejoin_option")
+                    if st.button("🎯 재등록 완료"):
+                        if new_option in 정액제옵션:
+                            expire = now + timedelta(days=30)
+                            worksheet.update(f"C{row_idx}", [[today]])
+                            worksheet.update(f"F{row_idx}", [[new_option]])
+                            worksheet.update(f"G{row_idx}", [[31]])
+                            worksheet.update(f"H{row_idx}", [[expire.strftime("%Y-%m-%d")]])
+                            worksheet.update(f"E{row_idx}", [[0]])
+                        else:
+                            count = int('1' if '1회' in new_option else ('5' if '5회' in new_option else '10'))
+                            worksheet.update(f"C{row_idx}", [[today]])
+                            worksheet.update(f"F{row_idx}", [[new_option]])
+                            worksheet.update(f"G{row_idx}", [[count]])
+                            worksheet.update(f"H{row_idx}", [["None"]])
+                            worksheet.update(f"E{row_idx}", [[0]])
+                        st.success("✅ 재등록 완료")
+                        time.sleep(1)
+                        st.rerun()
                 else:
-                    st.success(f"✅ 회원 유효: {expire_date}까지 남음 ({label})")
+                    st.success(f"✅ 회원 유효: {expire_date}까지 ({days_left}일 남음)")
                     if st.button("✅ 오늘 방문 기록 추가"):
                         new_count = int(customer.get("총 방문 횟수", 0)) + 1
                         new_log = f"{visit_log}, {now_str} (1)" if visit_log else f"{now_str} (1)"
