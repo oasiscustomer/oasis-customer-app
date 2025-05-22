@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 전체 통합 완성본: G열 자동 갱신 포함"""
+"""oasis.py - 안정화된 전체 코드 (G열 자동 갱신: 선택된 고객만)"""
 
 import streamlit as st
 import gspread
@@ -39,21 +39,6 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
     if key not in st.session_state:
         st.session_state[key] = False
 
-# ✅ G열 자동 갱신
-records = worksheet.get_all_records()
-for r in records:
-    plate = r.get("차량번호")
-    option = r.get("상품 옵션(정액제)", "")
-    expire_str = r.get("회원 만료일", "")
-    if plate and option and expire_str and expire_str.lower() != "none":
-        try:
-            expire_date = datetime.strptime(expire_str, "%Y-%m-%d").date()
-            remain = max((expire_date - now.date()).days, 0)
-            cell = worksheet.find(plate)
-            worksheet.update_cell(cell.row, 7, str(remain))
-        except:
-            pass
-
 # ✅ UI 시작
 st.markdown("<h1 style='text-align: center;'>🚘 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
@@ -62,6 +47,7 @@ with st.form("search_form"):
     submitted = st.form_submit_button("검색")
 
 matched = []
+records = worksheet.get_all_records()
 if submitted and search_input.strip():
     matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
     if not matched:
@@ -93,6 +79,15 @@ if st.session_state.get("matched_plate"):
         상품회수 = customer.get("상품 옵션(회수제)", "")
         방문기록 = customer.get("방문기록", "")
         만료일 = customer.get("회원 만료일", "")
+
+        # ✅ G열 자동 갱신 (선택된 고객만)
+        if 상품정액 and 만료일 and 만료일.lower() != "none":
+            try:
+                expire_date = datetime.strptime(만료일, "%Y-%m-%d").date()
+                remain = max((expire_date - now.date()).days, 0)
+                worksheet.update_cell(row_idx, 7, str(remain))  # G열
+            except:
+                st.warning("⚠️ 남은 이용 일수 자동 계산 실패")
 
         try:
             남은일수 = int(customer.get("남은 이용 일수", 0))
