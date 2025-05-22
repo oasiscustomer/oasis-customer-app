@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 완전한 전체 코드 통합본 (Streamlit 오류 해결 / 입력창 초기화 / 중복 방지 포함)"""
+"""oasis.py - 전체 통합 완성본: G열 자동 업데이트 포함"""
 
 import streamlit as st
 import gspread
@@ -34,22 +34,34 @@ def get_customer(plate):
     row_idx = next((i + 2 for i, r in enumerate(records) if r.get("차량번호") == plate), None)
     return customer, row_idx, records
 
-# ✅ 초기 세션 상태 변수 선언
+# ✅ 세션 상태 초기화
 for key in ["registration_success", "registering", "reset_form", "matched_plate"]:
     if key not in st.session_state:
         st.session_state[key] = False
 
-# ✅ 메인 타이틀
+# ✅ G열 자동 갱신
+records = worksheet.get_all_records()
+for i, r in enumerate(records):
+    option = r.get("상품 옵션(정액제)", "")
+    expire_str = r.get("회원 만료일", "")
+    if option and expire_str and expire_str.lower() != "none":
+        try:
+            expire_date = datetime.strptime(expire_str, "%Y-%m-%d").date()
+            remain = max((expire_date - now.date()).days, 0)
+            worksheet.update_cell(i + 2, 7, str(remain))  # G열 = 7
+        except:
+            pass
+
+# ✅ 타이틀
 st.markdown("<h1 style='text-align: center;'>🚘 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
-# ✅ 검색 기능
+# ✅ 고객 검색
 with st.form("search_form"):
     search_input = st.text_input("🔍 차량 번호 (전체 또는 끝 4자리)", key="search_input")
     submitted = st.form_submit_button("검색")
 
 matched = []
 if submitted and search_input.strip():
-    records = worksheet.get_all_records()
     matched = [r for r in records if search_input.strip() in str(r.get("차량번호", ""))]
     if not matched:
         st.info("🚫 등록되지 않은 차량입니다.")
@@ -66,7 +78,6 @@ if submitted and search_input.strip():
         st.session_state.matched_options = options
         st.session_state.matched_plate = list(options.values())[0]
 
-# ✅ 기존 고객 관리 화면
 if st.session_state.get("matched_plate"):
     plate = st.session_state["matched_plate"]
     label_options = list(st.session_state.matched_options.keys())
@@ -164,7 +175,7 @@ if st.session_state.get("matched_plate"):
                     st.success("✅ 회수제 추가 등록 완료")
                 st.rerun()
 
-# ✅ 신규 고객 등록
+# ✅ 신규 등록
 st.markdown("---")
 st.subheader("🆕 신규 고객 등록")
 
