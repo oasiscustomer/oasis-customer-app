@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 전체 통합 완성본: G열 자동 업데이트 포함"""
+"""oasis.py - 전체 통합 완성본: G열 자동 갱신 포함"""
 
 import streamlit as st
 import gspread
@@ -41,21 +41,22 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
 
 # ✅ G열 자동 갱신
 records = worksheet.get_all_records()
-for i, r in enumerate(records):
+for r in records:
+    plate = r.get("차량번호")
     option = r.get("상품 옵션(정액제)", "")
     expire_str = r.get("회원 만료일", "")
-    if option and expire_str and expire_str.lower() != "none":
+    if plate and option and expire_str and expire_str.lower() != "none":
         try:
             expire_date = datetime.strptime(expire_str, "%Y-%m-%d").date()
             remain = max((expire_date - now.date()).days, 0)
-            worksheet.update_cell(i + 2, 7, str(remain))  # G열 = 7
+            cell = worksheet.find(plate)
+            worksheet.update_cell(cell.row, 7, str(remain))
         except:
             pass
 
-# ✅ 타이틀
+# ✅ UI 시작
 st.markdown("<h1 style='text-align: center;'>🚘 오아시스 고객 관리 시스템</h1>", unsafe_allow_html=True)
 
-# ✅ 고객 검색
 with st.form("search_form"):
     search_input = st.text_input("🔍 차량 번호 (전체 또는 끝 4자리)", key="search_input")
     submitted = st.form_submit_button("검색")
