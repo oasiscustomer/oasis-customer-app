@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 안정화된 전체 코드 (G열 자동 갱신: 선택된 고객만)"""
+"""oasis.py - 안정화된 전체 코드 (회수제 회원 None 처리 포함)"""
 
 import streamlit as st
 import gspread
@@ -80,12 +80,12 @@ if st.session_state.get("matched_plate"):
         방문기록 = customer.get("방문기록", "")
         만료일 = customer.get("회원 만료일", "")
 
-        # ✅ G열 자동 갱신 (선택된 고객만)
-        if 상품정액 and 만료일 and 만료일.lower() != "none":
+        # ✅ G열 자동 갱신 (회수제 None 방지)
+        if 상품정액 and 만료일 not in [None, "", "None", "none"]:
             try:
                 expire_date = datetime.strptime(만료일, "%Y-%m-%d").date()
                 remain = max((expire_date - now.date()).days, 0)
-                worksheet.update_cell(row_idx, 7, str(remain))  # G열
+                worksheet.update_cell(row_idx, 7, str(remain))
             except:
                 st.warning("⚠️ 남은 이용 일수 자동 계산 실패")
 
