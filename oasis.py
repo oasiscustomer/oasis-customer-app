@@ -64,6 +64,7 @@ if submitted and search_input.strip():
     else:
         options = {}
         for r in matched:
+            st.write(r) #
             plate = r.get("차량번호")
             jung = r.get("상품 옵션(정액제)", "")
             hue = r.get("상품 옵션(회수제)", "")
