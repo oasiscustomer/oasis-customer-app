@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 안정화된 전체 코드 (회수제 회원 None 처리 포함)"""
+"""oasis.py - 최종 기능 통합 (블랙리스트 Y, K/L열 수정)"""
 
 import streamlit as st
 import gspread
@@ -60,8 +60,14 @@ if submitted and search_input.strip():
             hue = r.get("상품 옵션(회수제)", "")
             jung_remain = r.get("남은 이용 일수", "")
             hue_remain = r.get("남은 이용 횟수", "")
-            label = f"{plate} → {jung} {jung_remain}일 / {hue} {hue_remain}회"
+            
+            # K열의 '블랙리스트' 값을 확인 ('Y' 대소문자 무관)
+            is_blacklist = str(r.get("블랙리스트", "")).upper() == "Y"
+            blacklist_label = "블랙리스트 회원" if is_blacklist else ""
+            
+            label = f"{plate} → {jung} {jung_remain}일 / {hue} {hue_remain}회 {blacklist_label}"
             options[label] = plate
+            
         st.session_state.matched_options = options
         st.session_state.matched_plate = list(options.values())[0]
 
@@ -74,13 +80,13 @@ if st.session_state.get("matched_plate"):
 
     customer, row_idx, _ = get_customer(st.session_state.matched_plate)
     if customer and row_idx:
-        st.markdown(f"### 🚘 선택된 차량: `{plate}`")
+        st.markdown(f"### 🚘 선택된 차량: {plate}")
+        
         상품정액 = customer.get("상품 옵션(정액제)", "")
         상품회수 = customer.get("상품 옵션(회수제)", "")
-        방문기록 = customer.get("방문기록", "")
+        방문기록 = customer.get("방문기록", "") # L열에서 방문기록 읽기
         만료일 = customer.get("회원 만료일", "")
 
-        # ✅ G열 자동 갱신 (회수제 None 방지)
         if 상품정액 and 만료일 not in [None, "", "None", "none"]:
             try:
                 expire_date = datetime.strptime(만료일, "%Y-%m-%d").date()
@@ -125,7 +131,7 @@ if st.session_state.get("matched_plate"):
                 new_log = f"{방문기록}, {now_str} ({log_type})" if 방문기록 else f"{now_str} ({log_type})"
                 worksheet.update_cell(row_idx, 4, today)
                 worksheet.update_cell(row_idx, 5, str(count))
-                worksheet.update_cell(row_idx, 11, new_log)
+                worksheet.update_cell(row_idx, 12, new_log) # 방문기록을 12번째 열(L열)에 저장
                 st.success(f"✅ {log_type} 방문 기록 완료")
                 time.sleep(1)
                 st.rerun()
@@ -198,7 +204,10 @@ with st.form("register_form"):
             jung_day = "30" if pj != "None" else ""
             expire = (now + timedelta(days=30)).strftime("%Y-%m-%d") if pj != "None" else "None"
             cnt = 1 if "1회" in phs else (5 if "5회" in phs else (10 if phs != "None" else ""))
-            new_row = [np, phone, today, today, 1, pj if pj != "None" else "", jung_day, phs if phs != "None" else "", cnt, expire, f"{now_str} (신규등록)"]
+            
+            # 신규 등록 시 K열(블랙리스트)은 비워두고, L열(방문기록)에 신규등록 로그를 남김
+            new_row = [np, phone, today, today, 1, pj if pj != "None" else "", jung_day, phs if phs != "None" else "", cnt, expire, "", f"{now_str} (신규등록)"]
+            
             worksheet.append_row(new_row)
             st.session_state.registration_success = True
             st.session_state.reset_form = True
