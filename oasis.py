@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (검색창 가독성 개선)"""
+"""oasis.py - 최종 완성본 (모바일 반응형 완벽 수정)"""
 
 import streamlit as st
 import gspread
@@ -51,19 +51,31 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
 
 st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스 고객 관리</h3>", unsafe_allow_html=True)
 
-# ✨ --- [UI 개선점] 검색창 텍스트 크기 확대를 위한 CSS 추가 --- ✨
-# 이 CSS 코드는 다른 입력창에는 영향을 주지 않고 '차량 번호' 입력창에만 스타일을 적용합니다.
 st.markdown("""
 <style>
-/* '차량 번호' 라벨(제목) 스타일 */
+/* 검색창 라벨(제목) 스타일 */
 label[for^="st-Form-search_form-차량 번호"] {
     font-size: 1.1rem !important;
     font-weight: 600 !important;
 }
-/* '차량 번호' 입력 필드 스타일 */
+/* 검색창 입력 필드 스타일 */
 input[aria-label="차량 번호 (전체 또는 끝 4자리)"] {
-    font-size: 1.25rem !important; /* 입력 글자 크기 키우기 */
-    height: 50px !important;      /* 입력창 높이를 키워 터치 용이성 확보 */
+    font-size: 1.25rem !important;
+    height: 50px !important;
+}
+
+/* ✨ --- [모바일 반응형 CSS] --- ✨ */
+/* 화면 폭이 640px 이하일 때 (대부분의 모바일 기기) */
+@media (max-width: 640px) {
+    /* 정보 카드 4개를 감싸는 가로 컨테이너를 선택 */
+    div[data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap; /* 공간이 부족하면 다음 줄로 넘어가도록 허용 */
+    }
+    /* 4개의 정보 카드 각각을 선택 */
+    div[data-testid="column"] {
+        flex-basis: 50% !important; /* 각 카드가 가로 공간의 50%를 차지 (한 줄에 2개) */
+        max-width: 50% !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -71,7 +83,6 @@ input[aria-label="차량 번호 (전체 또는 끝 4자리)"] {
 
 tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
 
-# --- 기존 고객 관리 탭 ---
 with tab1:
     with st.form("search_form"):
         search_input = st.text_input("🔍 차량 번호 (전체 또는 끝 4자리)", key="search_input", placeholder="예: 1234")
@@ -151,8 +162,9 @@ with tab1:
                             worksheet.update_cell(row_idx, 7, str(max(0, days_left)))
                     except: pass
 
-                col1, col2 = st.columns(2)
-                col3, col4 = st.columns(2)
+                # ✨ --- [UI 개선점] --- ✨
+                # 다시 st.columns(4)로 변경하여 CSS로 직접 제어
+                col1, col2, col3, col4 = st.columns(4)
 
                 with col1:
                     value = f"{days_left}일" if days_left >= 0 else "만료"
@@ -227,7 +239,6 @@ with tab1:
                         if updated:
                             clear_all_cache(); st.rerun()
 
-# --- 신규 고객 등록 탭 ---
 with tab2:
     st.subheader("🆕 신규 고객 정보 입력")
     with st.form("register_form"):
