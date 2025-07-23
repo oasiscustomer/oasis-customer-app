@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (HTML 탭 직접 생성으로 모든 문제 해결)"""
+"""oasis.py - 최종 완성본 (st.tabs 복원 및 이용횟수 오류 수정)"""
 
 import streamlit as st
 import gspread
@@ -51,94 +51,17 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
 
 st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스 고객 관리</h3>", unsafe_allow_html=True)
 
-# ✨ --- [UI 개선점] st.tabs/st.radio 대신 HTML/CSS로 탭 메뉴 직접 생성 --- ✨
-# 현재 선택된 탭을 URL 쿼리 파라미터에서 가져옴 (기본값은 'manage')
-query_params = st.query_params
-selected_tab = query_params.get("tab", "manage")
+# ✨ --- [UI 변경점] 빠르고 안정적인 기본 st.tabs로 복원 --- ✨
+tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
 
-# 선택된 탭에 따라 'active' 클래스를 동적으로 추가
-active_class_manage = "active" if selected_tab == "manage" else ""
-active_class_register = "active" if selected_tab == "register" else ""
+with tab1:
+    # ✨ --- 검색창도 st.form 방식으로 복원 --- ✨
+    with st.form("search_form"):
+        search_input = st.text_input("🔍 차량 번호 (전체 또는 끝 4자리)", key="search_input", placeholder="예: 1234")
+        submitted = st.form_submit_button("검색", use_container_width=True)
 
-custom_tabs_html = f"""
-<style>
-    .custom-tabs-container {{
-        display: flex;
-        justify-content: center;
-        margin-bottom: 1.5rem;
-        gap: 8px; /* 탭 사이의 간격 */
-    }}
-    .custom-tabs-container a {{
-        display: block;
-        padding: 0.6rem 1.2rem;
-        border: 1px solid #ddd;
-        border-radius: 0.5rem;
-        background-color: #f0f2f6;
-        color: #333 !important; /* 라이트 모드 텍스트 색상 */
-        font-size: 1.1rem;
-        font-weight: 600;
-        text-align: center;
-        text-decoration: none !important;
-        transition: all 0.2s;
-    }}
-    /* 선택된 탭의 스타일 */
-    .custom-tabs-container a.active {{
-        background-color: #f63366;
-        color: white !important;
-        border-color: #f63366;
-    }}
-    /* 다크 모드 스타일 */
-    @media (prefers-color-scheme: dark) {{
-        .custom-tabs-container a {{
-            background-color: #262730;
-            color: #FAFAFA !important;
-            border-color: #31333F;
-        }}
-        .custom-tabs-container a.active {{
-            background-color: #f63366;
-            color: white !important;
-            border-color: #f63366;
-        }}
-    }}
-</style>
-<div class="custom-tabs-container">
-    <a href="/?tab=manage" class="{active_class_manage}">기존 고객 관리</a>
-    <a href="/?tab=register" class="{active_class_register}">신규 고객 등록</a>
-</div>
-"""
-st.markdown(custom_tabs_html, unsafe_allow_html=True)
-
-# --- 선택된 탭에 따라 내용 표시 ---
-if selected_tab == "manage":
-    search_form_html = """
-    <form action="" method="get" style="margin-bottom: 1rem;">
-        <input type="hidden" name="tab" value="manage">
-        <div>
-            <label for="search_plate" style="font-size: 1.1rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">
-                🔍 차량 번호 (전체 또는 끝 4자리)
-            </label>
-        </div>
-        <div>
-            <input type="text" id="search_plate" name="search_plate" placeholder="예: 1234"
-                   style="font-size: 1.5rem; height: 50px; width: 100%; padding: 0.5rem; border: 1px solid #999; border-radius: 0.5rem; box-sizing: border-box;">
-        </div>
-        <div>
-            <input type="submit" value="검색"
-                   style="width: 100%; height: 42px; margin-top: 0.75rem; border-radius: 0.5rem; border: none; background-color: #f63366; color: white; font-size: 1rem; font-weight: 600;">
-        </div>
-    </form>
-    """
-    st.markdown(search_form_html, unsafe_allow_html=True)
-    
-    search_input = query_params.get("search_plate")
-
-    if search_input and search_input.strip():
-        if st.session_state.get("last_search") != search_input:
-            st.session_state.matched_plate = None
-
-        st.session_state.last_search = search_input
+    if submitted and search_input.strip():
         matched = [r for r in all_records if search_input.strip() in str(r.get("차량번호", ""))]
-        
         if not matched:
             st.info("🚫 등록되지 않은 차량입니다. '신규 고객 등록' 탭을 이용해 주세요.")
             st.session_state.matched_plate = None
@@ -151,8 +74,7 @@ if selected_tab == "manage":
                 label = f"{plate} → 정액제: {jung} / 회수제: {hue}"
                 options[label] = plate
             st.session_state.matched_options = options
-            if not st.session_state.get("matched_plate") or st.session_state.get("matched_plate") not in options.values():
-                st.session_state.matched_plate = list(options.values())[0]
+            st.session_state.matched_plate = list(options.values())[0]
 
     if st.session_state.get("matched_plate"):
         plate = st.session_state["matched_plate"]
@@ -192,6 +114,7 @@ if selected_tab == "manage":
                         최근방문일 = last_log.split(' ')[0]
                     except IndexError:
                         최근방문일 = "확인 불가"
+                
                 방문횟수_기간내 = 0
                 if 상품정액 and 만료일 not in [None, "", "None", "none"]:
                     try:
@@ -200,11 +123,16 @@ if selected_tab == "manage":
                         if 방문기록:
                             visit_logs = 방문기록.split(',')
                             for log in visit_logs:
+                                # ✨ --- [버그 수정] '신규등록' 기록은 이용 횟수에서 제외 --- ✨
+                                if "(신규등록)" in log:
+                                    continue
+                                
                                 log_date_str = log.strip().split(' ')[0]
                                 log_date = datetime.strptime(log_date_str, "%Y-%m-%d").date()
                                 if start_date <= log_date <= expire_date:
                                     방문횟수_기간내 += 1
                     except: pass
+                
                 days_left = -999
                 if 상품정액 and 만료일 not in [None, "", "None", "none"]:
                     try:
@@ -260,7 +188,6 @@ if selected_tab == "manage":
                     </tr>
                 </table>
                 """
-                
                 st.markdown(html_table, unsafe_allow_html=True)
             
             with st.container(border=True):
@@ -323,7 +250,7 @@ if selected_tab == "manage":
                         if updated:
                             clear_all_cache(); st.rerun()
 
-elif selected_tab == "register":
+with tab2:
     with st.form("register_form"):
         st.subheader("🆕 신규 고객 정보 입력")
         np = st.text_input("🚘 차량번호", placeholder="12가 1234")
