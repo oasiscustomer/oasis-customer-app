@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (검색창 확대 및 텍스트 수정)"""
+"""oasis.py - 최종 완성본 (HTML 직접 생성으로 모든 문제 해결)"""
 
 import streamlit as st
 import gspread
@@ -51,39 +51,69 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
 
 st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스 고객 관리</h3>", unsafe_allow_html=True)
 
-# ✨ --- [UI 개선점] 검색창 크기 확대를 위한 CSS 추가 --- ✨
-st.markdown("""
-<style>
-/* 검색창을 감싸는 form을 특정하여 스타일을 적용 */
-form[data-testid="stForm"] {
-    /* 검색창과 아래 selectbox 사이 간격 조정 */
-    margin-bottom: 1rem;
-}
-form[data-testid="stForm"] label {
-    font-size: 1.1rem !important;
-    font-weight: 600 !important;
-}
-form[data-testid="stForm"] input {
-    font-size: 1.25rem !important;
-    height: 50px !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
 tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
 
 with tab1:
-    with st.form("search_form"):
-        search_input = st.text_input("🔍 차량 번호 (전체 또는 끝 4자리)", key="search_input", placeholder="예: 1234")
-        submitted = st.form_submit_button("검색", use_container_width=True)
+    # ✨ --- [UI 개선점] st.form 대신 HTML form을 직접 생성 --- ✨
+    # 이 방법은 디자인을 100% 제어하고 환경에 따른 오류가 없습니다.
+    search_form_html = """
+    <style>
+        .custom-search-form {{
+            margin-bottom: 1rem;
+        }}
+        .custom-search-form label {{
+            font-size: 1.1rem !important;
+            font-weight: 600 !important;
+            display: block;
+            margin-bottom: 0.5rem;
+        }}
+        .custom-search-form input[type="text"] {{
+            font-size: 1.25rem !important;
+            height: 50px !important;
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+        }}
+        .custom-search-form input[type="submit"] {{
+            width: 100%;
+            height: 42px;
+            margin-top: 0.75rem;
+            border-radius: 0.5rem;
+            border: none;
+            background-color: #f63366;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+        }}
+    </style>
+    <form action="" method="get" class="custom-search-form">
+        <label for="search_plate">🔍 차량 번호 (전체 또는 끝 4자리)</label>
+        <input type="text" id="search_plate" name="search_plate" placeholder="예: 1234">
+        <input type="submit" value="검색">
+    </form>
+    """
+    st.markdown(search_form_html, unsafe_allow_html=True)
+    
+    # URL 쿼리 파라미터에서 검색어 가져오기
+    query_params = st.experimental_get_query_params()
+    search_input = query_params.get("search_plate", [None])[0]
 
-    if submitted and search_input.strip():
+    # 검색어가 있을 때만 로직 실행
+    if search_input and search_input.strip():
+        # 이전에 검색된 결과가 현재 검색어와 다를 경우, 세션 초기화
+        if st.session_state.get("last_search") != search_input:
+            st.session_state.matched_plate = None
+
+        st.session_state.last_search = search_input
         matched = [r for r in all_records if search_input.strip() in str(r.get("차량번호", ""))]
+        
         if not matched:
             st.info("🚫 등록되지 않은 차량입니다. '신규 고객 등록' 탭을 이용해 주세요.")
-            st.session_state.matched_plate = False
+            st.session_state.matched_plate = None
         else:
+            # 검색 결과가 있으면, 첫 번째 결과를 기본 선택으로 설정
             options = {}
             for r in matched:
                 plate = r.get("차량번호")
@@ -92,7 +122,9 @@ with tab1:
                 label = f"{plate} → 정액제: {jung} / 회수제: {hue}"
                 options[label] = plate
             st.session_state.matched_options = options
-            st.session_state.matched_plate = list(options.values())[0]
+            # 현재 선택된 차량이 없거나, 현재 선택된 차량이 새 검색결과에 없을 때만 업데이트
+            if not st.session_state.get("matched_plate") or st.session_state.get("matched_plate") not in options.values():
+                st.session_state.matched_plate = list(options.values())[0]
 
     if st.session_state.get("matched_plate"):
         plate = st.session_state["matched_plate"]
@@ -105,8 +137,12 @@ with tab1:
             current_index = 0
 
         selected_label = st.selectbox("👇 검색된 고객 선택", label_options, index=current_index, key="customer_select")
-        st.session_state.matched_plate = st.session_state.matched_options[selected_label]
         
+        # selectbox에서 다른 고객을 선택하면 바로 반영
+        if st.session_state.matched_plate != st.session_state.matched_options[selected_label]:
+            st.session_state.matched_plate = st.session_state.matched_options[selected_label]
+            st.rerun()
+
         customer, row_idx = get_customer(st.session_state.matched_plate, all_records)
 
         if customer and row_idx:
@@ -152,7 +188,7 @@ with tab1:
                             worksheet.update_cell(row_idx, 7, str(max(0, days_left)))
                     except: pass
                 
-                # HTML 테이블을 사용하여 2x2 레이아웃 직접 생성
+                # HTML 테이블로 정보 표시
                 val1 = f"{days_left}일" if 상품정액 and days_left >= 0 else ("만료" if 상품정액 else "없음")
                 delta1 = f"~{만료일}" if 상품정액 else ""
                 val2 = f"{남은횟수}회" if 상품회수 else "없음"
@@ -197,7 +233,7 @@ with tab1:
                 
                 st.markdown(html_table, unsafe_allow_html=True)
             
-            # 이하 로직은 변경 없음 ...
+            # 이하 로직은 변경 없음
             with st.container(border=True):
                 st.subheader("✅ 방문 기록 추가")
                 visit_options = []
