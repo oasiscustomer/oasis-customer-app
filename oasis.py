@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (기간 내 방문 횟수 집계 기능 추가)"""
+"""oasis.py - 최종 완성본 ('기간 내 이용' 텍스트 수정)"""
 
 import streamlit as st
 import gspread
@@ -78,7 +78,7 @@ if st.session_state.get("matched_plate"):
     st.session_state.matched_plate = st.session_state.matched_options[selected]
 
     customer, row_idx = get_customer(st.session_state.matched_plate, all_records)
-    
+
     if customer and row_idx:
         st.markdown("---")
         st.markdown(f"#### 🚘 **선택된 차량:** {plate}")
@@ -93,7 +93,7 @@ if st.session_state.get("matched_plate"):
         방문기록 = customer.get("방문기록", "")
         만료일 = customer.get("회원 만료일", "")
         남은횟수 = int(customer.get("남은 이용 횟수", 0)) if str(customer.get("남은 이용 횟수")).isdigit() else 0
-        
+
         최근방문일 = "기록 없음"
         if 방문기록:
             try:
@@ -101,17 +101,14 @@ if st.session_state.get("matched_plate"):
                 최근방문일 = last_log.split(' ')[0]
             except IndexError:
                 최근방문일 = "확인 불가"
-        
-        # ✨ --- [추가된 부분 시작] --- ✨
+
         # 정액제 기간 내 방문 횟수 계산 로직
         방문횟수_기간내 = 0
         if 상품정액 and 만료일 not in [None, "", "None", "none"]:
             try:
-                # 현재 정액제 기간(시작일, 만료일)을 계산
                 expire_date = datetime.strptime(만료일, "%Y-%m-%d").date()
                 start_date = expire_date - timedelta(days=30)
-                
-                # 방문 기록을 확인하며 기간 내 방문 횟수를 카운트
+
                 if 방문기록:
                     visit_logs = 방문기록.split(',')
                     for log in visit_logs:
@@ -120,8 +117,7 @@ if st.session_state.get("matched_plate"):
                         if start_date <= log_date <= expire_date:
                             방문횟수_기간내 += 1
             except (ValueError, IndexError):
-                 pass # 날짜 포맷이 다르거나 기록이 없을 경우 오류 방지
-        # ✨ --- [추가된 부분 끝] --- ✨
+                 pass
 
         days_left = -999
         if 상품정액 and 만료일 not in [None, "", "None", "none"]:
@@ -146,23 +142,23 @@ if st.session_state.get("matched_plate"):
             else:
                 st.metric(label="회수권 상태", value="없음")
 
-        # ✨ --- [수정된 부분 시작] --- ✨
         # 마지막 방문일과 기간 내 이용 횟수를 2개의 컬럼으로 표시
         col3, col4 = st.columns(2)
         with col3:
             st.metric(label="🗓️ 마지막 방문", value=최근방문일)
         with col4:
-            if 상품정액: # 정액제 회원일 경우에만 횟수 표시
-                st.metric(label="이번달 이용(정액제)", value=f"{방문횟수_기간내}회")
-            else: # 정액제 회원이 아닐 경우 공간을 맞추기 위해 표시
-                st.metric(label="이번달 이용(정액제)", value="N/A")
-        # ✨ --- [수정된 부분 끝] --- ✨
+            if 상품정액:
+                # ✨ --- [수정된 부분] --- ✨
+                st.metric(label="기간 내 이용(정액제)", value=f"{방문횟수_기간내}회")
+            else:
+                # ✨ --- [수정된 부분] --- ✨
+                st.metric(label="기간 내 이용(정액제)", value="N/A")
 
         st.markdown("---")
-        
+
         # --- 핵심 기능과 부가 기능 분리 ---
         st.subheader("✅ 방문 기록 추가")
-        
+
         visit_options = []
         if 상품정액 and days_left >= 0: visit_options.append("정액제")
         if 상품회수 and 남은횟수 > 0: visit_options.append("회수제")
@@ -173,7 +169,7 @@ if st.session_state.get("matched_plate"):
                 log_type = 사용옵션
                 if log_type == "회수제":
                     worksheet.update_cell(row_idx, 9, str(남은횟수 - 1))
-                
+
                 count = int(customer.get("총 방문 횟수", 0)) + 1
                 new_log = f"{방문기록}, {now_str} ({log_type})" if 방문기록 else f"{now_str} ({log_type})"
                 worksheet.update_cell(row_idx, 4, today)
@@ -199,7 +195,7 @@ if st.session_state.get("matched_plate"):
                     st.success("✅ 재등록 완료")
                     clear_all_cache()
                     st.rerun()
-            
+
             if 상품회수 and 남은횟수 <= 0:
                 st.warning("⛔ 회수권이 모두 소진되었습니다.")
                 sel = st.selectbox("회수권 충전", 회수제옵션, key="재회수")
@@ -258,9 +254,9 @@ with st.form("register_form"):
             cnt = ""
             if phs != "선택 안함":
                 cnt = 1 if "1회" in phs else (5 if "5회" in phs else 10)
-            
+
             new_row = [np, phone, today, today, 1, pj if pj != "선택 안함" else "", jung_day, phs if phs != "선택 안함" else "", cnt, expire, "", f"{now_str} (신규등록)"]
-            
+
             worksheet.append_row(new_row)
             st.success("✅ 등록이 완료되었습니다! 2초 후 앱이 새로고침 됩니다.")
             clear_all_cache()
