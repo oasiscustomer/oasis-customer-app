@@ -92,7 +92,7 @@ if st.session_state.get("matched_plate"):
         if last_visit:
             st.info(f"📅 마지막 방문일: `{last_visit}`")
 
-        # --- 변수 정리 ---
+             # --- 변수 정리 ---
         상품정액 = customer.get("상품 옵션(정액제)", "")
         상품회수 = customer.get("상품 옵션(회수제)", "")
         방문기록 = customer.get("방문기록", "")
