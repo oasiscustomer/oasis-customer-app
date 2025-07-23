@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (HTML 테이블 방식으로 레이아웃 보장)"""
+"""oasis.py - 최종 완성본 (검색창 확대 및 텍스트 수정)"""
 
 import streamlit as st
 import gspread
@@ -50,6 +50,26 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
 # --- 2. UI 구조 개선 ---
 
 st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스 고객 관리</h3>", unsafe_allow_html=True)
+
+# ✨ --- [UI 개선점] 검색창 크기 확대를 위한 CSS 추가 --- ✨
+st.markdown("""
+<style>
+/* 검색창을 감싸는 form을 특정하여 스타일을 적용 */
+form[data-testid="stForm"] {
+    /* 검색창과 아래 selectbox 사이 간격 조정 */
+    margin-bottom: 1rem;
+}
+form[data-testid="stForm"] label {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+}
+form[data-testid="stForm"] input {
+    font-size: 1.25rem !important;
+    height: 50px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
 
@@ -132,45 +152,20 @@ with tab1:
                             worksheet.update_cell(row_idx, 7, str(max(0, days_left)))
                     except: pass
                 
-                # ✨ --- [UI 개선점] --- ✨
-                # st.columns와 st.metric 대신, HTML 테이블을 사용하여 2x2 레이아웃을 직접 생성합니다.
-                # 이 방법은 모든 기기에서 레이아웃을 완벽하게 보장합니다.
-                
-                # 1. 표시할 값들을 변수로 준비
+                # HTML 테이블을 사용하여 2x2 레이아웃 직접 생성
                 val1 = f"{days_left}일" if 상품정액 and days_left >= 0 else ("만료" if 상품정액 else "없음")
                 delta1 = f"~{만료일}" if 상품정액 else ""
                 val2 = f"{남은횟수}회" if 상품회수 else "없음"
                 val3 = 최근방문일
                 val4 = f"{방문횟수_기간내}회" if 상품정액 else ""
                 
-                # 2. HTML 코드를 f-string으로 작성
                 html_table = f"""
                 <style>
-                    .metric-table {{
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin-top: 1rem;
-                    }}
-                    .metric-table td {{
-                        width: 50%;
-                        padding: 8px;
-                        text-align: center;
-                        vertical-align: top;
-                    }}
-                    .metric-label {{
-                        font-size: 0.95rem;
-                        color: #555;
-                        margin-bottom: 0.25rem;
-                    }}
-                    .metric-value {{
-                        font-size: 1.75rem;
-                        font-weight: 600;
-                        line-height: 1.2;
-                    }}
-                    .metric-delta {{
-                        font-size: 0.8rem;
-                        color: #888;
-                    }}
+                    .metric-table {{ width: 100%; border-collapse: collapse; margin-top: 1rem; }}
+                    .metric-table td {{ width: 50%; padding: 8px; text-align: center; vertical-align: top; }}
+                    .metric-label {{ font-size: 0.95rem; color: #555; margin-bottom: 0.25rem; }}
+                    .metric-value {{ font-size: 1.75rem; font-weight: 600; line-height: 1.2; }}
+                    .metric-delta {{ font-size: 0.8rem; color: #888; }}
                 </style>
                 <table class="metric-table">
                     <tr>
@@ -180,7 +175,7 @@ with tab1:
                             <div class="metric-delta">{delta1}</div>
                         </td>
                         <td>
-                            <div class="metric-label">회수권</div>
+                            <div class="metric-label">회수권(남은횟수)</div>
                             <div class="metric-value">{val2}</div>
                             <div class="metric-delta">&nbsp;</div>
                         </td>
@@ -200,7 +195,6 @@ with tab1:
                 </table>
                 """
                 
-                # 3. st.markdown으로 HTML 테이블 표시
                 st.markdown(html_table, unsafe_allow_html=True)
             
             # 이하 로직은 변경 없음 ...
