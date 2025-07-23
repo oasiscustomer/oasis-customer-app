@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (인라인 스타일 강제 적용)"""
+"""oasis.py - 최종 완성본 (모든 UI 개선 적용)"""
 
 import streamlit as st
 import gspread
@@ -51,10 +51,20 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
 
 st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스 고객 관리</h3>", unsafe_allow_html=True)
 
+# ✨ --- [UI 개선점] 탭 텍스트 크기 확대를 위한 CSS 추가 --- ✨
+st.markdown("""
+<style>
+    /* 탭 버튼 스타일 */
+    button[data-testid="stTab"] {
+        font-size: 1.15rem !important; /* 폰트 크기 키우기 */
+        font-weight: 600 !important;   /* 폰트 굵게 */
+    }
+</style>
+""", unsafe_allow_html=True)
+
 tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
 
 with tab1:
-    # ✨ --- [UI 개선점] 인라인 스타일을 사용하여 스타일을 강제로, 직접 적용 --- ✨
     search_form_html = """
     <form action="" method="get" style="margin-bottom: 1rem;">
         <div>
