@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (모바일 UI/UX 개선)"""
+"""oasis.py - 최종 완성본 (모바일 UI/UX 개선 + 마지막 방문일자 표시 추가)"""
 
 import streamlit as st
 import gspread
@@ -23,7 +23,7 @@ def get_gspread_client():
 
 @st.cache_data(ttl=60)
 def load_data(_client):
-    with st.spinner("🔄 데이터를 새로 불러오는 중..."):
+    with st.spinner("🔄 데이터를 새로 보내오는 중..."):
         worksheet = _client.open("Oasis Customer Management").sheet1
         return worksheet.get_all_records()
 
@@ -31,7 +31,7 @@ client = get_gspread_client()
 worksheet = client.open("Oasis Customer Management").sheet1
 all_records = load_data(client)
 
-정액제옵션 = ["기본(정액제)", "중급(정액제)", "고급(정액제)"]
+특정정안제옵션 = ["기본(정안제)", "중급(정안제)", "고급(정안제)"]
 회수제옵션 = ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"]
 
 def get_customer(plate, records):
@@ -65,8 +65,7 @@ if submitted and search_input.strip():
             plate = r.get("차량번호")
             jung = r.get("상품 옵션(정액제)", "없음") or "없음"
             hue = r.get("상품 옵션(회수제)", "없음") or "없음"
-            # ✨ UI 개선: 선택 목록 라벨을 간소화
-            label = f"{plate} → 정액제: {jung} / 회수제: {hue}"
+            label = f"{plate} → 정안제: {jung} / 회수제: {hue}"
             options[label] = plate
         st.session_state.matched_options = options
         st.session_state.matched_plate = list(options.values())[0]
@@ -79,20 +78,19 @@ if st.session_state.get("matched_plate"):
     st.session_state.matched_plate = st.session_state.matched_options[selected]
 
     customer, row_idx = get_customer(st.session_state.matched_plate, all_records)
-    
+
     if customer and row_idx:
         st.markdown("---")
         st.markdown(f"#### 🚘 **선택된 차량:** {plate}")
 
-        # ✨ UI 개선: 블랙리스트 표시 위치 변경
         is_blacklist = str(customer.get("블랙리스트", "")).strip().upper() == "Y"
         if is_blacklist:
             st.error("🚨 **블랙리스트 회원**")
 
-        # 🚘 마지막 방문일자 표시
-last_visit = customer.get("최종 방문일", "")
-if last_visit:
-    st.info(f"📅 마지막 방문일: `{last_visit}`")
+        # ✅ 마지막 방문일자 표시
+        last_visit = customer.get("최종 방문일", "")
+        if last_visit:
+            st.info(f"📅 마지막 방문일: `{last_visit}`")
 
         # --- 변수 정리 ---
         상품정액 = customer.get("상품 옵션(정액제)", "")
