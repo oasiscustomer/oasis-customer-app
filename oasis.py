@@ -23,7 +23,7 @@ def get_gspread_client():
 
 @st.cache_data(ttl=60)
 def load_data(_client):
-    with st.spinner("🔄 데이터를 새로 보내오는 중..."):
+    with st.spinner("🔄 데이터를 새로 불러오는 중..."):
         worksheet = _client.open("Oasis Customer Management").sheet1
         return worksheet.get_all_records()
 
@@ -31,7 +31,7 @@ client = get_gspread_client()
 worksheet = client.open("Oasis Customer Management").sheet1
 all_records = load_data(client)
 
-특정정안제옵션 = ["기본(정안제)", "중급(정안제)", "고급(정안제)"]
+정액제옵션 = ["기본(정액제)", "중급(정액제)", "고급(정액제)"]
 회수제옵션 = ["일반 5회권", "중급 5회권", "고급 5회권", "일반 10회권", "중급 10회권", "고급 10회권", "고급 1회권"]
 
 def get_customer(plate, records):
@@ -65,7 +65,7 @@ if submitted and search_input.strip():
             plate = r.get("차량번호")
             jung = r.get("상품 옵션(정액제)", "없음") or "없음"
             hue = r.get("상품 옵션(회수제)", "없음") or "없음"
-            label = f"{plate} → 정안제: {jung} / 회수제: {hue}"
+            label = f"{plate} → 정액제: {jung} / 회수제: {hue}"
             options[label] = plate
         st.session_state.matched_options = options
         st.session_state.matched_plate = list(options.values())[0]
