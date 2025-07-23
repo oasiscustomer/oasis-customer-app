@@ -89,6 +89,11 @@ if st.session_state.get("matched_plate"):
         if is_blacklist:
             st.error("🚨 **블랙리스트 회원**")
 
+        # 🚘 마지막 방문일자 표시
+last_visit = customer.get("최종 방문일", "")
+if last_visit:
+    st.info(f"📅 마지막 방문일: `{last_visit}`")
+
         # --- 변수 정리 ---
         상품정액 = customer.get("상품 옵션(정액제)", "")
         상품회수 = customer.get("상품 옵션(회수제)", "")
