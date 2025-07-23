@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (모든 UI 개선 적용)"""
+"""oasis.py - 최종 완성본 (라디오 버튼으로 탭 구현)"""
 
 import streamlit as st
 import gspread
@@ -51,20 +51,63 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
 
 st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스 고객 관리</h3>", unsafe_allow_html=True)
 
-# ✨ --- [UI 개선점] 탭 텍스트 크기 확대를 위한 CSS 추가 --- ✨
+# ✨ --- [UI 개선점] st.radio를 탭처럼 보이게 하는 CSS --- ✨
 st.markdown("""
 <style>
-    /* 탭 버튼 스타일 */
-    button[data-testid="stTab"] {
-        font-size: 1.15rem !important; /* 폰트 크기 키우기 */
-        font-weight: 600 !important;   /* 폰트 굵게 */
+    /* 라디오 버튼 전체를 감싸는 컨테이너 */
+    div[data-testid="stRadio"] > div {
+        display: flex;
+        justify-content: center;
+        gap: 0px; /* 버튼 사이 간격 제거 */
+        margin-bottom: 1.5rem; /* 탭과 아래 내용 사이 간격 */
+    }
+    /* 라디오 버튼의 라벨을 탭 버튼처럼 스타일링 */
+    div[data-testid="stRadio"] label {
+        display: inline-block;
+        padding: 0.6rem 1.2rem;
+        border: 1px solid #ddd;
+        background-color: #f0f2f6;
+        color: #555;
+        font-size: 1.1rem !important;
+        font-weight: 600;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-radius: 0; /* 모든 모서리 둥글림 초기화 */
+    }
+    /* 첫 번째 버튼의 왼쪽 모서리만 둥글게 */
+    div[data-testid="stRadio"] > div > div:first-child label {
+        border-top-left-radius: 0.5rem;
+        border-bottom-left-radius: 0.5rem;
+    }
+    /* 마지막 버튼의 오른쪽 모서리만 둥글게 */
+    div[data-testid="stRadio"] > div > div:last-child label {
+        border-top-right-radius: 0.5rem;
+        border-bottom-right-radius: 0.5rem;
+    }
+    /* 실제 라디오 버튼 숨기기 */
+    div[data-testid="stRadio"] input[type="radio"] {
+        display: none;
+    }
+    /* 선택된 라디오 버튼의 라벨 스타일 */
+    div[data-testid="stRadio"] input[type="radio"]:checked + label {
+        background-color: #f63366;
+        color: white;
+        border-color: #f63366;
     }
 </style>
 """, unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
+# ✨ --- st.tabs 대신, 스타일이 적용된 st.radio와 if문으로 탭 기능 구현 --- ✨
+selected_tab = st.radio(
+    "메인 탭", 
+    ["**기존 고객 관리**", "**신규 고객 등록**"], 
+    horizontal=True, 
+    label_visibility="collapsed"
+)
 
-with tab1:
+# --- 선택된 탭에 따라 내용 표시 ---
+if selected_tab == "**기존 고객 관리**":
     search_form_html = """
     <form action="" method="get" style="margin-bottom: 1rem;">
         <div>
@@ -273,9 +316,9 @@ with tab1:
                         if updated:
                             clear_all_cache(); st.rerun()
 
-with tab2:
-    st.subheader("🆕 신규 고객 정보 입력")
+elif selected_tab == "**신규 고객 등록**":
     with st.form("register_form"):
+        st.subheader("🆕 신규 고객 정보 입력")
         np = st.text_input("🚘 차량번호", placeholder="12가 1234")
         ph = st.text_input("📞 전화번호", placeholder="010-1234-5678")
         st.markdown("---")
