@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (라디오 버튼으로 탭 구현)"""
+"""oasis.py - 최종 완성본 (모든 UI 문제 해결)"""
 
 import streamlit as st
 import gspread
@@ -51,23 +51,23 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
 
 st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스 고객 관리</h3>", unsafe_allow_html=True)
 
-# ✨ --- [UI 개선점] st.radio를 탭처럼 보이게 하는 CSS --- ✨
+# ✨ --- [UI 개선점] 다크모드, 레이아웃, 불필요한 박스 문제를 모두 해결한 최종 CSS --- ✨
 st.markdown("""
 <style>
-    /* 라디오 버튼 전체를 감싸는 컨테이너 */
+    /* 라디오 버튼을 탭처럼 보이게 하는 전체 컨테이너 */
     div[data-testid="stRadio"] > div {
         display: flex;
-        justify-content: center;
+        justify-content: center; /* 버튼들을 중앙에 정렬 */
         gap: 0px; /* 버튼 사이 간격 제거 */
-        margin-bottom: 1.5rem; /* 탭과 아래 내용 사이 간격 */
+        margin-bottom: 1.5rem;
     }
     /* 라디오 버튼의 라벨을 탭 버튼처럼 스타일링 */
     div[data-testid="stRadio"] label {
-        display: inline-block;
+        display: block;
         padding: 0.6rem 1.2rem;
         border: 1px solid #ddd;
         background-color: #f0f2f6;
-        color: #555;
+        color: #333; /* 라이트 모드 텍스트 색상 */
         font-size: 1.1rem !important;
         font-weight: 600;
         text-align: center;
@@ -79,26 +79,37 @@ st.markdown("""
     div[data-testid="stRadio"] > div > div:first-child label {
         border-top-left-radius: 0.5rem;
         border-bottom-left-radius: 0.5rem;
+        border-right-width: 0.5px; /* 버튼 사이 경계선 */
     }
     /* 마지막 버튼의 오른쪽 모서리만 둥글게 */
     div[data-testid="stRadio"] > div > div:last-child label {
         border-top-right-radius: 0.5rem;
         border-bottom-right-radius: 0.5rem;
+        border-left-width: 0.5px; /* 버튼 사이 경계선 */
     }
     /* 실제 라디오 버튼 숨기기 */
     div[data-testid="stRadio"] input[type="radio"] {
         display: none;
     }
-    /* 선택된 라디오 버튼의 라벨 스타일 */
+    /* 선택된 라디오 버튼의 라벨 스타일 (라이트/다크 공통) */
     div[data-testid="stRadio"] input[type="radio"]:checked + label {
-        background-color: #f63366;
-        color: white;
-        border-color: #f63366;
+        background-color: #f63366 !important;
+        color: white !important;
+        border-color: #f63366 !important;
+    }
+    /* 다크 모드 스타일 */
+    body.dark div[data-testid="stRadio"] label {
+        background-color: #262730;
+        color: #FAFAFA;
+        border-color: #31333F;
+    }
+    /* '메인 탭' 이라는 불필요한 박스 숨기기 */
+    div[data-testid="stRadio"] > label {
+        display: none;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ✨ --- st.tabs 대신, 스타일이 적용된 st.radio와 if문으로 탭 기능 구현 --- ✨
 selected_tab = st.radio(
     "메인 탭", 
     ["**기존 고객 관리**", "**신규 고객 등록**"], 
@@ -106,7 +117,6 @@ selected_tab = st.radio(
     label_visibility="collapsed"
 )
 
-# --- 선택된 탭에 따라 내용 표시 ---
 if selected_tab == "**기존 고객 관리**":
     search_form_html = """
     <form action="" method="get" style="margin-bottom: 1rem;">
@@ -225,6 +235,9 @@ if selected_tab == "**기존 고객 관리**":
                     .metric-label {{ font-size: 0.95rem; color: #555; margin-bottom: 0.25rem; }}
                     .metric-value {{ font-size: 1.75rem; font-weight: 600; line-height: 1.2; }}
                     .metric-delta {{ font-size: 0.8rem; color: #888; }}
+                    body.dark .metric-label {{ color: #aab; }}
+                    body.dark .metric-value {{ color: #fafafa; }}
+                    body.dark .metric-delta {{ color: #778; }}
                 </style>
                 <table class="metric-table">
                     <tr>
