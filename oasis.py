@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (UI/UX 대폭 개선)"""
+"""oasis.py - 최종 완성본 (검색창 가독성 개선)"""
 
 import streamlit as st
 import gspread
@@ -51,7 +51,24 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
 
 st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스 고객 관리</h3>", unsafe_allow_html=True)
 
-# ✨ [UI 개선점 1] st.tabs를 사용해 '고객 관리'와 '신규 등록' 작업을 명확히 분리 (스크롤 문제 해결)
+# ✨ --- [UI 개선점] 검색창 텍스트 크기 확대를 위한 CSS 추가 --- ✨
+# 이 CSS 코드는 다른 입력창에는 영향을 주지 않고 '차량 번호' 입력창에만 스타일을 적용합니다.
+st.markdown("""
+<style>
+/* '차량 번호' 라벨(제목) 스타일 */
+label[for^="st-Form-search_form-차량 번호"] {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+}
+/* '차량 번호' 입력 필드 스타일 */
+input[aria-label="차량 번호 (전체 또는 끝 4자리)"] {
+    font-size: 1.25rem !important; /* 입력 글자 크기 키우기 */
+    height: 50px !important;      /* 입력창 높이를 키워 터치 용이성 확보 */
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
 
 # --- 기존 고객 관리 탭 ---
@@ -64,7 +81,7 @@ with tab1:
         matched = [r for r in all_records if search_input.strip() in str(r.get("차량번호", ""))]
         if not matched:
             st.info("🚫 등록되지 않은 차량입니다. '신규 고객 등록' 탭을 이용해 주세요.")
-            st.session_state.matched_plate = False # 검색 결과가 없으면 선택 초기화
+            st.session_state.matched_plate = False
         else:
             options = {}
             for r in matched:
@@ -81,7 +98,6 @@ with tab1:
         label_options = list(st.session_state.matched_options.keys())
         value_options = list(st.session_state.matched_options.values())
         
-        # 검색된 고객이 여러 명일 경우 선택 유지
         try:
             current_index = value_options.index(plate)
         except ValueError:
@@ -93,7 +109,6 @@ with tab1:
         customer, row_idx = get_customer(st.session_state.matched_plate, all_records)
 
         if customer and row_idx:
-            # ✨ [UI 개선점 2] st.container(border=True)로 고객 정보를 하나의 카드처럼 묶어 가독성 향상
             with st.container(border=True):
                 st.markdown(f"#### **{st.session_state.matched_plate}** 님 정보")
 
@@ -136,8 +151,9 @@ with tab1:
                             worksheet.update_cell(row_idx, 7, str(max(0, days_left)))
                     except: pass
 
-                # ✨ [UI 개선점 3] st.columns(4)로 모든 정보 카드를 한 줄에 표시해 공간 효율성 극대화
-                col1, col2, col3, col4 = st.columns(4)
+                col1, col2 = st.columns(2)
+                col3, col4 = st.columns(2)
+
                 with col1:
                     value = f"{days_left}일" if days_left >= 0 else "만료"
                     st.metric(label="정액제", value=value, delta=f"~{만료일}" if 상품정액 else None, delta_color="off")
@@ -146,11 +162,10 @@ with tab1:
                 with col3:
                     st.metric(label="최근 방문", value=최근방문일)
                 with col4:
-                    label_text = "기간 내 이용" if 상품정액 else " " # 정액제가 아닐 때 라벨 숨김
+                    label_text = "기간 내 이용" if 상품정액 else " "
                     value_text = f"{방문횟수_기간내}회" if 상품정액 else " "
                     st.metric(label=label_text, value=value_text)
 
-            # ✨ [UI 개선점 4] 핵심 기능인 '방문 기록'을 별도 카드로 분리해 강조
             with st.container(border=True):
                 st.subheader("✅ 방문 기록 추가")
                 visit_options = []
@@ -176,15 +191,12 @@ with tab1:
                 else:
                     st.warning("사용 가능한 이용권이 없습니다.")
             
-            # ✨ [UI 개선점 5] 부가 기능들을 Expander에 모아두어 평소에는 숨기고 필요할 때만 보도록 변경
             with st.expander("🔄 상품 추가 / 갱신 / 충전"):
-                # 갱신/충전 로직
                 if (상품정액 and days_left < 0) or (상품회수 and 남은횟수 <= 0):
                     st.info("만료/소진된 상품을 갱신 또는 충전합니다.")
                     if 상품정액 and days_left < 0:
                         sel = st.selectbox("정액제 갱신", 정액제옵션, key="재정액")
                         if st.button("📅 정액제 갱신하기", use_container_width=True):
-                            # (로직 변경 없음)
                             expire = now + timedelta(days=30)
                             worksheet.update_cell(row_idx, 6, sel)
                             worksheet.update_cell(row_idx, 7, "30")
@@ -193,19 +205,16 @@ with tab1:
                     if 상품회수 and 남은횟수 <= 0:
                         sel = st.selectbox("회수권 충전", 회수제옵션, key="재회수")
                         if st.button("🔁 회수권 충전하기", use_container_width=True):
-                            # (로직 변경 없음)
                             cnt = 1 if "1회" in sel else (5 if "5회" in sel else 10)
                             worksheet.update_cell(row_idx, 9, str(cnt))
                             worksheet.update_cell(row_idx, 8, sel)
                             st.success("✅ 회수권 충전 완료"); clear_all_cache(); st.rerun()
                 
-                # 새 상품 추가 로직
                 st.info("기존 고객에게 새로운 종류의 상품을 추가합니다.")
                 with st.form("add_product_form"):
                     add_jung = st.selectbox("정액제 추가 등록", ["선택 안함"] + 정액제옵션)
                     add_hue = st.selectbox("회수제 추가 등록", ["선택 안함"] + 회수제옵션)
                     if st.form_submit_button("새 상품 추가하기", use_container_width=True):
-                        # (로직 변경 없음)
                         updated = False
                         if add_jung != "선택 안함":
                             expire = now + timedelta(days=30)
@@ -229,8 +238,7 @@ with tab2:
         phs = st.selectbox("회수제 상품 (선택)", ["선택 안함"] + 회수제옵션)
 
         if st.form_submit_button("신규 고객으로 등록하기", use_container_width=True, type="primary"):
-            # (로직 변경 없음)
-            if reg and np and ph:
+            if np and ph:
                 exists = any(r.get("차량번호") == np for r in all_records)
                 if exists:
                     st.warning("🚨 이미 등록된 차량번호입니다. '기존 고객 관리' 탭에서 검색해 보세요.")
