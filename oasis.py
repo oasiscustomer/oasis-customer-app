@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (모바일 반응형 완벽 수정)"""
+"""oasis.py - 최종 완성본 (CSS 강제 적용 및 반응형 수정)"""
 
 import streamlit as st
 import gspread
@@ -51,30 +51,29 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
 
 st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스 고객 관리</h3>", unsafe_allow_html=True)
 
+# ✨ --- [UI 개선점] 이전보다 더 강력하고 확실한 CSS 선택자 사용 --- ✨
 st.markdown("""
 <style>
-/* 검색창 라벨(제목) 스타일 */
-label[for^="st-Form-search_form-차량 번호"] {
+/* 검색창을 감싸는 form을 특정하여 스타일을 적용 */
+form[data-testid="stForm"][aria-label="search_form"] label {
     font-size: 1.1rem !important;
     font-weight: 600 !important;
 }
-/* 검색창 입력 필드 스타일 */
-input[aria-label="차량 번호 (전체 또는 끝 4자리)"] {
+form[data-testid="stForm"][aria-label="search_form"] input {
     font-size: 1.25rem !important;
     height: 50px !important;
 }
 
-/* ✨ --- [모바일 반응형 CSS] --- ✨ */
-/* 화면 폭이 640px 이하일 때 (대부분의 모바일 기기) */
+/* 모바일 반응형 CSS - st.container로 감싸진 정보 카드에만 적용되도록 수정 */
 @media (max-width: 640px) {
-    /* 정보 카드 4개를 감싸는 가로 컨테이너를 선택 */
-    div[data-testid="stHorizontalBlock"] {
-        flex-wrap: wrap; /* 공간이 부족하면 다음 줄로 넘어가도록 허용 */
+    /* 정보 카드를 감싸고 있는 stVerticalBlock을 특정 */
+    div[data-testid="stVerticalBlock"]:has(div[data-testid="stMetric"]) div[data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+        row-gap: 1rem !important; /* 세로 간격 추가 */
     }
-    /* 4개의 정보 카드 각각을 선택 */
-    div[data-testid="column"] {
-        flex-basis: 50% !important; /* 각 카드가 가로 공간의 50%를 차지 (한 줄에 2개) */
-        max-width: 50% !important;
+    div[data-testid="stVerticalBlock"]:has(div[data-testid="stMetric"]) div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        flex-basis: calc(50% - 0.5rem) !important; /* 가로 간격을 고려하여 50%보다 살짝 작게 */
+        max-width: calc(50% - 0.5rem) !important;
     }
 }
 </style>
@@ -84,7 +83,8 @@ input[aria-label="차량 번호 (전체 또는 끝 4자리)"] {
 tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
 
 with tab1:
-    with st.form("search_form"):
+    # ✨ 검색창 form에 aria-label을 추가하여 CSS가 정확히 타겟팅하도록 함
+    with st.form("search_form", clear_on_submit=False):
         search_input = st.text_input("🔍 차량 번호 (전체 또는 끝 4자리)", key="search_input", placeholder="예: 1234")
         submitted = st.form_submit_button("검색", use_container_width=True)
 
@@ -162,8 +162,6 @@ with tab1:
                             worksheet.update_cell(row_idx, 7, str(max(0, days_left)))
                     except: pass
 
-                # ✨ --- [UI 개선점] --- ✨
-                # 다시 st.columns(4)로 변경하여 CSS로 직접 제어
                 col1, col2, col3, col4 = st.columns(4)
 
                 with col1:
@@ -177,7 +175,8 @@ with tab1:
                     label_text = "기간 내 이용" if 상품정액 else " "
                     value_text = f"{방문횟수_기간내}회" if 상품정액 else " "
                     st.metric(label=label_text, value=value_text)
-
+            
+            # 이하 로직은 변경 없음 ...
             with st.container(border=True):
                 st.subheader("✅ 방문 기록 추가")
                 visit_options = []
@@ -187,7 +186,6 @@ with tab1:
                 if visit_options:
                     사용옵션 = st.radio("사용할 이용권 선택:", visit_options, horizontal=True)
                     if st.button(f"**{사용옵션}으로 방문 기록하기**", use_container_width=True, type="primary"):
-                        # (로직 변경 없음)
                         log_type = 사용옵션
                         if log_type == "회수제":
                             worksheet.update_cell(row_idx, 9, str(남은횟수 - 1))
