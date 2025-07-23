@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (모바일 UI/UX 개선 + 마지막 방문일자 표시 추가 - 항상 표시되도록 위치 조정 포함)"""
+"""oasis.py - 최종 완성본 (모바일 UI/UX 개선 + 마지막 방문일 추가)"""
 
 import streamlit as st
 import gspread
@@ -78,17 +78,35 @@ if st.session_state.get("matched_plate"):
     st.session_state.matched_plate = st.session_state.matched_options[selected]
 
     customer, row_idx = get_customer(st.session_state.matched_plate, all_records)
-
+    
     if customer and row_idx:
         st.markdown("---")
         st.markdown(f"#### 🚘 **선택된 차량:** {plate}")
 
+        is_blacklist = str(customer.get("블랙리스트", "")).strip().upper() == "Y"
+        if is_blacklist:
+            st.error("🚨 **블랙리스트 회원**")
+
+        # --- 변수 정리 ---
         상품정액 = customer.get("상품 옵션(정액제)", "")
         상품회수 = customer.get("상품 옵션(회수제)", "")
-        만료일 = customer.get("회원 만료일", "")
         방문기록 = customer.get("방문기록", "")
-        남은횟수 = int(customer.get("남은 이용 횟수", 0)) if str(customer.get("남은 이용 횟수", "")).isdigit() else 0
-
+        만료일 = customer.get("회원 만료일", "")
+        남은횟수 = int(customer.get("남은 이용 횟수", 0)) if str(customer.get("남은 이용 횟수")).isdigit() else 0
+        
+        # ✨ --- [추가된 부분 시작] --- ✨
+        # 마지막 방문일 추출 로직
+        최근방문일 = "기록 없음"
+        if 방문기록:
+            try:
+                # 방문기록 문자열을 쉼표로 분리하고 마지막 기록을 가져옵니다.
+                last_log = 방문기록.split(',')[-1].strip()
+                # 'YYYY-MM-DD' 형식의 날짜 부분만 추출합니다.
+                최근방문일 = last_log.split(' ')[0]
+            except IndexError:
+                최근방문일 = "확인 불가" # 혹시 모를 오류에 대비
+        # ✨ --- [추가된 부분 끝] --- ✨
+        
         days_left = -999
         if 상품정액 and 만료일 not in [None, "", "None", "none"]:
             try:
@@ -96,9 +114,9 @@ if st.session_state.get("matched_plate"):
                 days_left = (expire_date - now.date()).days
                 if str(customer.get("남은 이용 일수")) != str(max(0, days_left)):
                     worksheet.update_cell(row_idx, 7, str(max(0, days_left)))
-            except:
-                pass
+            except: pass
 
+        # --- UI 개선: st.metric과 st.columns로 정보 카드 디자인 ---
         col1, col2 = st.columns(2)
         with col1:
             if 상품정액:
@@ -112,17 +130,19 @@ if st.session_state.get("matched_plate"):
             else:
                 st.metric(label="회수권 상태", value="없음")
 
-        # ✅ 마지막 방문일자 항상 표시 (여기 위치 고정)
-        last_visit = customer.get("최종 방문일", "")
-        if last_visit:
-            st.info(f"📅 마지막 방문일: `{last_visit}`")
+        # ✨ --- [추가된 부분 시작] --- ✨
+        # 마지막 방문 날짜를 메트릭으로 표시
+        st.metric(label="🗓️ 마지막 방문", value=최근방문일)
+        # ✨ --- [추가된 부분 끝] --- ✨
 
+        st.markdown("---")
+        
+        # --- 핵심 기능과 부가 기능 분리 ---
         st.subheader("✅ 방문 기록 추가")
+        
         visit_options = []
-        if 상품정액 and days_left >= 0:
-            visit_options.append("정액제")
-        if 상품회수 and 남은횟수 > 0:
-            visit_options.append("회수제")
+        if 상품정액 and days_left >= 0: visit_options.append("정액제")
+        if 상품회수 and 남은횟수 > 0: visit_options.append("회수제")
 
         if visit_options:
             사용옵션 = st.radio("사용할 이용권을 선택하세요.", visit_options, horizontal=True)
@@ -130,7 +150,7 @@ if st.session_state.get("matched_plate"):
                 log_type = 사용옵션
                 if log_type == "회수제":
                     worksheet.update_cell(row_idx, 9, str(남은횟수 - 1))
-
+                
                 count = int(customer.get("총 방문 횟수", 0)) + 1
                 new_log = f"{방문기록}, {now_str} ({log_type})" if 방문기록 else f"{now_str} ({log_type})"
                 worksheet.update_cell(row_idx, 4, today)
@@ -143,6 +163,7 @@ if st.session_state.get("matched_plate"):
         else:
             st.warning("사용 가능한 이용권이 없습니다.")
 
+        # --- 부가 기능을 접이식 Expander로 정리 ---
         with st.expander("갱신 및 충전 (만료/소진 시)"):
             if 상품정액 and days_left < 0:
                 st.warning("⛔ 정액제가 만료되었습니다.")
@@ -155,7 +176,7 @@ if st.session_state.get("matched_plate"):
                     st.success("✅ 재등록 완료")
                     clear_all_cache()
                     st.rerun()
-
+            
             if 상품회수 and 남은횟수 <= 0:
                 st.warning("⛔ 회수권이 모두 소진되었습니다.")
                 sel = st.selectbox("회수권 충전", 회수제옵션, key="재회수")
@@ -191,7 +212,7 @@ if st.session_state.get("matched_plate"):
                         clear_all_cache()
                         st.rerun()
 
-# 신규 등록
+# --- 신규 등록 섹션 ---
 st.markdown("---")
 st.subheader("🆕 신규 고객 등록")
 
@@ -200,6 +221,7 @@ with st.form("register_form"):
     ph = st.text_input("📞 전화번호")
     pj = st.selectbox("정액제 상품", ["선택 안함"] + 정액제옵션)
     phs = st.selectbox("회수제 상품", ["선택 안함"] + 회수제옵션)
+
     reg = st.form_submit_button("신규 고객으로 등록하기")
 
     if reg and np and ph:
@@ -213,9 +235,9 @@ with st.form("register_form"):
             cnt = ""
             if phs != "선택 안함":
                 cnt = 1 if "1회" in phs else (5 if "5회" in phs else 10)
-
-            new_row = [np, phone, today, today, 1, pj if pj != "선택 안함" else "",
-                        jung_day, phs if phs != "선택 안함" else "", cnt, expire, "", f"{now_str} (신규등록)"]
+            
+            new_row = [np, phone, today, today, 1, pj if pj != "선택 안함" else "", jung_day, phs if phs != "선택 안함" else "", cnt, expire, "", f"{now_str} (신규등록)"]
+            
             worksheet.append_row(new_row)
             st.success("✅ 등록이 완료되었습니다! 2초 후 앱이 새로고침 됩니다.")
             clear_all_cache()
