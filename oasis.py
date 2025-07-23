@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (st.query_params 적용)"""
+"""oasis.py - 최종 완성본 (인라인 스타일 강제 적용)"""
 
 import streamlit as st
 import gspread
@@ -54,23 +54,26 @@ st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스
 tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
 
 with tab1:
+    # ✨ --- [UI 개선점] 인라인 스타일을 사용하여 스타일을 강제로, 직접 적용 --- ✨
     search_form_html = """
-    <style>
-        .custom-search-form {{ margin-bottom: 1rem; }}
-        .custom-search-form label {{ font-size: 1.1rem !important; font-weight: 600 !important; display: block; margin-bottom: 0.5rem; }}
-        .custom-search-form input[type="text"] {{ font-size: 1.25rem !important; height: 50px !important; width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 0.5rem; box-sizing: border-box; }}
-        .custom-search-form input[type="submit"] {{ width: 100%; height: 42px; margin-top: 0.75rem; border-radius: 0.5rem; border: none; background-color: #f63366; color: white; font-size: 1rem; font-weight: 600; }}
-    </style>
-    <form action="" method="get" class="custom-search-form">
-        <label for="search_plate">🔍 차량 번호 (전체 또는 끝 4자리)</label>
-        <input type="text" id="search_plate" name="search_plate" placeholder="예: 1234">
-        <input type="submit" value="검색">
+    <form action="" method="get" style="margin-bottom: 1rem;">
+        <div>
+            <label for="search_plate" style="font-size: 1.1rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">
+                🔍 차량 번호 (전체 또는 끝 4자리)
+            </label>
+        </div>
+        <div>
+            <input type="text" id="search_plate" name="search_plate" placeholder="예: 1234"
+                   style="font-size: 1.5rem; height: 50px; width: 100%; padding: 0.5rem; border: 1px solid #999; border-radius: 0.5rem; box-sizing: border-box;">
+        </div>
+        <div>
+            <input type="submit" value="검색"
+                   style="width: 100%; height: 42px; margin-top: 0.75rem; border-radius: 0.5rem; border: none; background-color: #f63366; color: white; font-size: 1rem; font-weight: 600;">
+        </div>
     </form>
     """
     st.markdown(search_form_html, unsafe_allow_html=True)
     
-    # ✨ --- [수정된 부분] --- ✨
-    # st.experimental_get_query_params()를 st.query_params로 변경
     query_params = st.query_params
     search_input = query_params.get("search_plate")
 
