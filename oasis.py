@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (정액제 신규등록일 이용횟수 카운트 복원)"""
+"""oasis.py - 최종 완성본 (정액제 재등록 시 방문 카운트 추가)"""
 
 import streamlit as st
 import gspread
@@ -121,7 +121,6 @@ with tab1:
                         if 방문기록:
                             visit_logs = 방문기록.split(',')
                             for log in visit_logs:
-                                # ✨ --- [로직 수정] '신규등록' 기록도 이용 횟수에 포함되도록 복원 --- ✨
                                 log_date_str = log.strip().split(' ')[0]
                                 log_date = datetime.strptime(log_date_str, "%Y-%m-%d").date()
                                 if start_date <= log_date <= expire_date:
@@ -215,11 +214,29 @@ with tab1:
                     if 상품정액 and days_left < 0:
                         sel = st.selectbox("정액제 갱신", 정액제옵션, key="재정액")
                         if st.button("📅 정액제 갱신하기", use_container_width=True):
+                            # 1. 만료일 등 기본 정보 업데이트
                             expire = now + timedelta(days=30)
                             worksheet.update_cell(row_idx, 6, sel)
                             worksheet.update_cell(row_idx, 7, "30")
                             worksheet.update_cell(row_idx, 10, expire.strftime("%Y-%m-%d"))
-                            st.success("✅ 재등록 완료"); clear_all_cache(); st.rerun()
+                            
+                            # 2. ✨ [추가된 로직] 방문기록에 (재등록) 로그 추가
+                            new_log = f"{방문기록}, {now_str} (재등록)" if 방문기록 else f"{now_str} (재등록)"
+                            worksheet.update_cell(row_idx, 12, new_log)
+                            
+                            # 3. ✨ [추가된 로직] 총 방문 횟수도 1 증가
+                            count = int(customer.get("총 방문 횟수", 0)) + 1
+                            worksheet.update_cell(row_idx, 5, str(count))
+                            
+                            # 4. ✨ [추가된 로직] 최근 방문일도 오늘 날짜로 업데이트
+                            worksheet.update_cell(row_idx, 4, today)
+
+                            # 5. 완료 및 새로고침
+                            st.success("✅ 재등록 및 방문 기록 완료")
+                            clear_all_cache()
+                            time.sleep(1)
+                            st.rerun()
+
                     if 상품회수 and 남은횟수 <= 0:
                         sel = st.selectbox("회수권 충전", 회수제옵션, key="재회수")
                         if st.button("🔁 회수권 충전하기", use_container_width=True):
