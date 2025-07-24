@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (st.tabs 복원 및 이용횟수 오류 수정)"""
+"""oasis.py - 최종 완성본 (정액제 신규등록일 이용횟수 카운트 복원)"""
 
 import streamlit as st
 import gspread
@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import pytz
 import time
 
-# --- 1. 기본 설정 및 데이터 로딩 (로직 변경 없음) ---
+# --- 1. 기본 설정 및 데이터 로딩 ---
 st.set_page_config(layout="centered")
 
 now = datetime.now(pytz.timezone("Asia/Seoul"))
@@ -47,15 +47,13 @@ for key in ["registration_success", "registering", "reset_form", "matched_plate"
     if key not in st.session_state:
         st.session_state[key] = None
 
-# --- 2. UI 구조 개선 ---
+# --- 2. UI 구조 ---
 
 st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스 고객 관리</h3>", unsafe_allow_html=True)
 
-# ✨ --- [UI 변경점] 빠르고 안정적인 기본 st.tabs로 복원 --- ✨
 tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
 
 with tab1:
-    # ✨ --- 검색창도 st.form 방식으로 복원 --- ✨
     with st.form("search_form"):
         search_input = st.text_input("🔍 차량 번호 (전체 또는 끝 4자리)", key="search_input", placeholder="예: 1234")
         submitted = st.form_submit_button("검색", use_container_width=True)
@@ -123,10 +121,7 @@ with tab1:
                         if 방문기록:
                             visit_logs = 방문기록.split(',')
                             for log in visit_logs:
-                                # ✨ --- [버그 수정] '신규등록' 기록은 이용 횟수에서 제외 --- ✨
-                                if "(신규등록)" in log:
-                                    continue
-                                
+                                # ✨ --- [로직 수정] '신규등록' 기록도 이용 횟수에 포함되도록 복원 --- ✨
                                 log_date_str = log.strip().split(' ')[0]
                                 log_date = datetime.strptime(log_date_str, "%Y-%m-%d").date()
                                 if start_date <= log_date <= expire_date:
