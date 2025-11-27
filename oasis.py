@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""oasis.py - 최종 완성본 (정액제 재등록 시 방문 카운트 추가)"""
+"""oasis.py - 최종 완성본 (정액제 재등록 시 방문 카운트 추가 + 메모 기능 추가)"""
 
 import streamlit as st
 import gspread
@@ -53,6 +53,9 @@ st.markdown("<h3 style='text-align: center; font-weight:bold;'>🚘 오아시스
 
 tab1, tab2 = st.tabs(["**기존 고객 관리**", "**신규 고객 등록**"])
 
+# -------------------------------------------------------------------
+# TAB 1 : 기존 고객 관리
+# -------------------------------------------------------------------
 with tab1:
     with st.form("search_form"):
         search_input = st.text_input("🔍 차량 번호 (전체 또는 끝 4자리)", key="search_input", placeholder="예: 1234")
@@ -93,6 +96,9 @@ with tab1:
         customer, row_idx = get_customer(st.session_state.matched_plate, all_records)
 
         if customer and row_idx:
+            # ─────────────────────────────────────────────
+            # 고객 정보 카드 (정액제/회수권/최근 방문/기간 내 이용)
+            # ─────────────────────────────────────────────
             with st.container(border=True):
                 st.markdown(f"#### **{st.session_state.matched_plate}** 님 정보")
 
@@ -105,6 +111,8 @@ with tab1:
                 방문기록 = customer.get("방문기록", "")
                 만료일 = customer.get("회원 만료일", "")
                 남은횟수 = int(customer.get("남은 이용 횟수", 0)) if str(customer.get("남은 이용 횟수")).isdigit() else 0
+
+                # 🔹 최근 방문일 계산
                 최근방문일 = "기록 없음"
                 if 방문기록:
                     try:
@@ -113,6 +121,7 @@ with tab1:
                     except IndexError:
                         최근방문일 = "확인 불가"
                 
+                # 🔹 정액제 기간 내 방문횟수 계산
                 방문횟수_기간내 = 0
                 if 상품정액 and 만료일 not in [None, "", "None", "none"]:
                     try:
@@ -125,8 +134,10 @@ with tab1:
                                 log_date = datetime.strptime(log_date_str, "%Y-%m-%d").date()
                                 if start_date <= log_date <= expire_date:
                                     방문횟수_기간내 += 1
-                    except: pass
+                    except:
+                        pass
                 
+                # 🔹 남은 일수 계산 및 시트 반영
                 days_left = -999
                 if 상품정액 and 만료일 not in [None, "", "None", "none"]:
                     try:
@@ -134,7 +145,8 @@ with tab1:
                         days_left = (expire_date - now.date()).days
                         if str(customer.get("남은 이용 일수")) != str(max(0, days_left)):
                             worksheet.update_cell(row_idx, 7, str(max(0, days_left)))
-                    except: pass
+                    except:
+                        pass
                 
                 val1 = f"{days_left}일" if 상품정액 and days_left >= 0 else ("만료" if 상품정액 else "없음")
                 delta1 = f"~{만료일}" if 상품정액 else ""
@@ -183,12 +195,31 @@ with tab1:
                 </table>
                 """
                 st.markdown(html_table, unsafe_allow_html=True)
+
+                # 🔹🔹🔹 메모 UI 추가 (M열: 메모) 🔹🔹🔹
+                메모기존값 = customer.get("메모", "") or ""
+                with st.form("memo_form"):
+                    memo_input = st.text_area("📝 메모", value=메모기존값, height=80)
+                    memo_submitted = st.form_submit_button("메모 저장", use_container_width=True)
+                    if memo_submitted:
+                        # M열 = 13번째 컬럼에 메모 저장
+                        worksheet.update_cell(row_idx, 13, memo_input)
+                        st.success("✅ 메모가 저장되었습니다.")
+                        clear_all_cache()
+                        time.sleep(1)
+                        st.rerun()
+                # 🔹🔹🔹 메모 UI 끝 🔹🔹🔹
             
+            # ─────────────────────────────────────────────
+            # 방문 기록 추가
+            # ─────────────────────────────────────────────
             with st.container(border=True):
                 st.subheader("✅ 방문 기록 추가")
                 visit_options = []
-                if 상품정액 and days_left >= 0: visit_options.append("정액제")
-                if 상품회수 and 남은횟수 > 0: visit_options.append("회수제")
+                if 상품정액 and days_left >= 0: 
+                    visit_options.append("정액제")
+                if 상품회수 and 남은횟수 > 0: 
+                    visit_options.append("회수제")
 
                 if visit_options:
                     사용옵션 = st.radio("사용할 이용권 선택:", visit_options, horizontal=True)
@@ -208,6 +239,9 @@ with tab1:
                 else:
                     st.warning("사용 가능한 이용권이 없습니다.")
             
+            # ─────────────────────────────────────────────
+            # 상품 추가 / 갱신 / 충전
+            # ─────────────────────────────────────────────
             with st.expander("🔄 상품 추가 / 갱신 / 충전"):
                 if (상품정액 and days_left < 0) or (상품회수 and 남은횟수 <= 0):
                     st.info("만료/소진된 상품을 갱신 또는 충전합니다.")
@@ -220,15 +254,15 @@ with tab1:
                             worksheet.update_cell(row_idx, 7, "30")
                             worksheet.update_cell(row_idx, 10, expire.strftime("%Y-%m-%d"))
                             
-                            # 2. ✨ [추가된 로직] 방문기록에 (재등록) 로그 추가
+                            # 2. 방문기록에 (재등록) 로그 추가
                             new_log = f"{방문기록}, {now_str} (재등록)" if 방문기록 else f"{now_str} (재등록)"
                             worksheet.update_cell(row_idx, 12, new_log)
                             
-                            # 3. ✨ [추가된 로직] 총 방문 횟수도 1 증가
+                            # 3. 총 방문 횟수 +1
                             count = int(customer.get("총 방문 횟수", 0)) + 1
                             worksheet.update_cell(row_idx, 5, str(count))
                             
-                            # 4. ✨ [추가된 로직] 최근 방문일도 오늘 날짜로 업데이트
+                            # 4. 최근 방문일 오늘로
                             worksheet.update_cell(row_idx, 4, today)
 
                             # 5. 완료 및 새로고침
@@ -243,7 +277,9 @@ with tab1:
                             cnt = 1 if "1회" in sel else (5 if "5회" in sel else 10)
                             worksheet.update_cell(row_idx, 9, str(cnt))
                             worksheet.update_cell(row_idx, 8, sel)
-                            st.success("✅ 회수권 충전 완료"); clear_all_cache(); st.rerun()
+                            st.success("✅ 회수권 충전 완료")
+                            clear_all_cache()
+                            st.rerun()
                 
                 st.info("기존 고객에게 새로운 종류의 상품을 추가합니다.")
                 with st.form("add_product_form"):
@@ -253,15 +289,24 @@ with tab1:
                         updated = False
                         if add_jung != "선택 안함":
                             expire = now + timedelta(days=30)
-                            worksheet.update_cell(row_idx, 6, add_jung); worksheet.update_cell(row_idx, 7, "30"); worksheet.update_cell(row_idx, 10, expire.strftime("%Y-%m-%d"))
-                            st.success("✅ 정액제 추가 등록 완료"); updated = True
+                            worksheet.update_cell(row_idx, 6, add_jung)
+                            worksheet.update_cell(row_idx, 7, "30")
+                            worksheet.update_cell(row_idx, 10, expire.strftime("%Y-%m-%d"))
+                            st.success("✅ 정액제 추가 등록 완료")
+                            updated = True
                         if add_hue != "선택 안함":
                             cnt = 1 if "1회" in add_hue else (5 if "5회" in add_hue else 10)
-                            worksheet.update_cell(row_idx, 9, str(cnt)); worksheet.update_cell(row_idx, 8, add_hue)
-                            st.success("✅ 회수제 추가 등록 완료"); updated = True
+                            worksheet.update_cell(row_idx, 9, str(cnt))
+                            worksheet.update_cell(row_idx, 8, add_hue)
+                            st.success("✅ 회수제 추가 등록 완료")
+                            updated = True
                         if updated:
-                            clear_all_cache(); st.rerun()
+                            clear_all_cache()
+                            st.rerun()
 
+# -------------------------------------------------------------------
+# TAB 2 : 신규 고객 등록
+# -------------------------------------------------------------------
 with tab2:
     with st.form("register_form"):
         st.subheader("🆕 신규 고객 정보 입력")
@@ -283,7 +328,22 @@ with tab2:
                     cnt = ""
                     if phs != "선택 안함":
                         cnt = 1 if "1회" in phs else (5 if "5회" in phs else 10)
-                    new_row = [np, phone, today, today, 1, pj if pj != "선택 안함" else "", jung_day, phs if phs != "선택 안함" else "", cnt, expire, "", f"{now_str} (신규등록)"]
+                    # ⚠️ new_row는 기존과 동일 (메모 칸은 비워둔 상태로 시작)
+                    new_row = [
+                        np,                      # A 차량번호
+                        phone,                   # B 전화번호
+                        today,                   # C 등록일
+                        today,                   # D 최종 방문일
+                        1,                       # E 총 방문 횟수
+                        pj if pj != "선택 안함" else "",   # F 정액제 옵션
+                        jung_day,                # G 남은 이용 일수
+                        phs if phs != "선택 안함" else "", # H 회수제 옵션
+                        cnt,                     # I 남은 이용 횟수
+                        expire,                  # J 회원 만료일
+                        "",                      # K 블랙리스트
+                        f"{now_str} (신규등록)", # L 방문기록
+                        # M 메모 (신규 등록 시 비워둠)
+                    ]
                     worksheet.append_row(new_row)
                     st.success("✅ 등록이 완료되었습니다! 앱이 새로고침 됩니다.")
                     clear_all_cache()
