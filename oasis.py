@@ -43,6 +43,35 @@ def clear_all_cache():
     st.cache_data.clear()
     st.cache_resource.clear()
 
+
+def _to_int(v, default=0):
+    try:
+        return int(str(v).strip())
+    except Exception:
+        return default
+
+def keep_last_n_logs(visit_str: str, n: int = 60) -> str:
+    """방문기록(L열)을 콤마(,) 기준으로 분리해 최신 n개만 유지."""
+    if not visit_str:
+        return ""
+    logs = [x.strip() for x in str(visit_str).split(",") if x.strip()]
+    return ", ".join(logs[-n:])
+
+def update_reregistration_index(worksheet, row_idx: int, customer: dict, now_str: str, rereg_type: str):
+    """
+    재등록 인덱스 컬럼 업데이트:
+      N(14): 재등록 여부 = Y
+      O(15): 재등록 횟수 = 누적 정수
+      P(16): 최근 재등록일 = now_str
+      Q(17): 최근 재등록 유형 = '정액제' 또는 '회수제'
+    """
+    current_cnt = _to_int(customer.get("재등록 횟수", 0), 0)
+    new_cnt = current_cnt + 1
+    worksheet.update_cell(row_idx, 14, "Y")
+    worksheet.update_cell(row_idx, 15, str(new_cnt))
+    worksheet.update_cell(row_idx, 16, now_str)
+    worksheet.update_cell(row_idx, 17, str(rereg_type))
+
 for key in ["registration_success", "registering", "reset_form", "matched_plate", "last_search"]:
     if key not in st.session_state:
         st.session_state[key] = None
@@ -198,6 +227,25 @@ with tab1:
 
                 # 🔹🔹🔹 메모 UI 추가 (M열: 메모) 🔹🔹🔹
                 메모기존값 = customer.get("메모", "") or ""
+                if str(메모기존값).strip():
+                    st.markdown(
+                        f"""
+                        <div style="
+                            color:#d00000;
+                            font-weight:800;
+                            background:#fff1f1;
+                            border:1px solid #ffb3b3;
+                            padding:10px 12px;
+                            border-radius:10px;
+                            line-height:1.4;
+                            font-size:1.05rem;
+                        ">
+                        ⚠️ 메모: {메모기존값}
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
                 with st.form("memo_form"):
                     memo_input = st.text_area("📝 메모", value=메모기존값, height=80)
                     memo_submitted = st.form_submit_button("메모 저장", use_container_width=True)
@@ -228,7 +276,8 @@ with tab1:
                         if log_type == "회수제":
                             worksheet.update_cell(row_idx, 9, str(남은횟수 - 1))
                         count = int(customer.get("총 방문 횟수", 0)) + 1
-                        new_log = f"{방문기록}, {now_str} ({log_type})" if 방문기록 else f"{now_str} ({log_type})"
+                        new_log_raw = f"{방문기록}, {now_str} ({log_type})" if 방문기록 else f"{now_str} ({log_type})"
+                        new_log = keep_last_n_logs(new_log_raw, 60)
                         worksheet.update_cell(row_idx, 4, today)
                         worksheet.update_cell(row_idx, 5, str(count))
                         worksheet.update_cell(row_idx, 12, new_log)
@@ -255,7 +304,8 @@ with tab1:
                             worksheet.update_cell(row_idx, 10, expire.strftime("%Y-%m-%d"))
                             
                             # 2. 방문기록에 (재등록) 로그 추가
-                            new_log = f"{방문기록}, {now_str} (재등록)" if 방문기록 else f"{now_str} (재등록)"
+                            new_log_raw = f"{방문기록}, {now_str} (재등록)" if 방문기록 else f"{now_str} (재등록)"
+                            new_log = keep_last_n_logs(new_log_raw, 60)
                             worksheet.update_cell(row_idx, 12, new_log)
                             
                             # 3. 총 방문 횟수 +1
@@ -264,6 +314,9 @@ with tab1:
                             
                             # 4. 최근 방문일 오늘로
                             worksheet.update_cell(row_idx, 4, today)
+
+                            # 4-1. 재등록 인덱스 업데이트 (N~Q)
+                            update_reregistration_index(worksheet, row_idx, customer, now_str, "정액제")
 
                             # 5. 완료 및 새로고침
                             st.success("✅ 재등록 및 방문 기록 완료")
@@ -277,6 +330,9 @@ with tab1:
                             cnt = 1 if "1회" in sel else (5 if "5회" in sel else 10)
                             worksheet.update_cell(row_idx, 9, str(cnt))
                             worksheet.update_cell(row_idx, 8, sel)
+                            
+                            # 재등록 인덱스 업데이트 (N~Q)
+                            update_reregistration_index(worksheet, row_idx, customer, now_str, "회수제")
                             st.success("✅ 회수권 충전 완료")
                             clear_all_cache()
                             st.rerun()
@@ -341,7 +397,7 @@ with tab2:
                         cnt,                     # I 남은 이용 횟수
                         expire,                  # J 회원 만료일
                         "",                      # K 블랙리스트
-                        f"{now_str} (신규등록)", # L 방문기록
+                        keep_last_n_logs(f"{now_str} (신규등록)", 60), # L 방문기록
                         # M 메모 (신규 등록 시 비워둠)
                     ]
                     worksheet.append_row(new_row)
