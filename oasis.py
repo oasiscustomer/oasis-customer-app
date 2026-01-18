@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """oasis.py - 최종 완성본 (정액제 재등록 시 방문 카운트 추가 + 메모 기능 추가)"""
 
-import streamlit as st
+import streamlit as st_
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
